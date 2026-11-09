@@ -1,0 +1,18 @@
+{
+  "profiles": [
+    {
+      "name": "lab-secret-rotation-profile",
+      "description": "Laboratorio CRC: principal 300s, anterior 120s, janela de atualizacao 60s",
+      "executors": [
+        {
+          "executor": "secret-rotation",
+          "configuration": {
+            "expiration-period": 300,
+            "rotated-expiration-period": 120,
+            "remaining-rotation-period": 60
+          }
+        }
+      ]
+    }
+  ]
+}

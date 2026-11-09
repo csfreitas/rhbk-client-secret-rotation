@@ -1,0 +1,121 @@
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "rotation-controller",
+    "namespace": "rhbk-rotation-lab",
+    "labels": {
+      "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+      "lab.rhbk/owner": "client-secret-rotation"
+    }
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "configmaps"
+      ],
+      "resourceNames": [
+        "rotation-state"
+      ],
+      "verbs": [
+        "get",
+        "update"
+      ]
+    },
+    {
+      "apiGroups": [
+        "coordination.k8s.io"
+      ],
+      "resources": [
+        "leases"
+      ],
+      "resourceNames": [
+        "rotation-catalogo-api"
+      ],
+      "verbs": [
+        "get",
+        "update"
+      ]
+    },
+    {
+      "apiGroups": [
+        "coordination.k8s.io"
+      ],
+      "resources": [
+        "leases"
+      ],
+      "verbs": [
+        "create"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "secrets"
+      ],
+      "verbs": [
+        "get",
+        "create"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments"
+      ],
+      "resourceNames": [
+        "m2m-probe"
+      ],
+      "verbs": [
+        "get",
+        "update"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "create"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods/proxy"
+      ],
+      "verbs": [
+        "get"
+      ]
+    },
+    {
+      "apiGroups": [
+        "batch"
+      ],
+      "resources": [
+        "cronjobs"
+      ],
+      "resourceNames": [
+        "rotation-controller"
+      ],
+      "verbs": [
+        "get",
+        "update"
+      ]
+    }
+  ]
+}

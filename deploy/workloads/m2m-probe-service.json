@@ -1,0 +1,27 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "m2m-probe",
+    "namespace": "rhbk-rotation-lab",
+    "labels": {
+      "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+      "lab.rhbk/owner": "client-secret-rotation"
+    }
+  },
+  "spec": {
+    "type": "ClusterIP",
+    "selector": {
+      "app.kubernetes.io/name": "m2m-probe",
+      "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+      "lab.rhbk/owner": "client-secret-rotation"
+    },
+    "ports": [
+      {
+        "name": "status",
+        "port": 8080,
+        "targetPort": "status"
+      }
+    ]
+  }
+}

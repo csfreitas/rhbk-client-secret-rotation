@@ -1,0 +1,16 @@
+{
+  "policies": [
+    {
+      "name": "lab-secret-rotation-policy",
+      "description": "Somente clients que definem o papel marcador lab-secret-rotation",
+      "enabled": true,
+      "conditions": [
+        {
+          "condition": "client-roles",
+          "configuration": {"roles": ["lab-secret-rotation"]}
+        }
+      ],
+      "profiles": ["lab-secret-rotation-profile"]
+    }
+  ]
+}

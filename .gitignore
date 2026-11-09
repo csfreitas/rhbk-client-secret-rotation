@@ -1,0 +1,14 @@
+.private/
+evidence/
+.env
+*.pem
+*.key
+*kubeconfig*
+*pull-secret*
+*auth.json
+*.token
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+*.log

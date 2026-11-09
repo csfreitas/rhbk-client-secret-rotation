@@ -1,0 +1,157 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "postgres-data",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation"
+        },
+        "namespace": "rhbk-rotation-lab"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "crc-csi-hostpath-provisioner",
+        "resources": {
+          "requests": {
+            "storage": "1Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "postgresql",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation"
+        },
+        "namespace": "rhbk-rotation-lab"
+      },
+      "spec": {
+        "selector": {
+          "app": "postgresql"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "postgresql",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation"
+        },
+        "namespace": "rhbk-rotation-lab"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "postgresql"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+              "lab.rhbk/owner": "client-secret-rotation",
+              "app": "postgresql"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "containers": [
+              {
+                "name": "postgresql",
+                "image": "registry.redhat.io/rhel9/postgresql-16@sha256:172d248599f2f87e0e78bffb6401bcbfc4c07f189ceec40ab76b86268b216797",
+                "env": [
+                  {
+                    "name": "POSTGRESQL_USER",
+                    "value": "keycloak"
+                  },
+                  {
+                    "name": "POSTGRESQL_DATABASE",
+                    "value": "keycloak"
+                  },
+                  {
+                    "name": "POSTGRESQL_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "postgres-credential",
+                        "key": "password"
+                      }
+                    }
+                  }
+                ],
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  },
+                  "runAsNonRoot": true
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "/usr/libexec/check-container"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/pgsql/data"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "postgres-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "CronJob",
+  "metadata": {
+    "name": "rotation-controller",
+    "namespace": "rhbk-rotation-lab",
+    "labels": {
+      "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+      "lab.rhbk/owner": "client-secret-rotation",
+      "app.kubernetes.io/name": "rotation-controller"
+    }
+  },
+  "spec": {
+    "schedule": "* * * * *",
+    "suspend": true,
+    "concurrencyPolicy": "Forbid",
+    "startingDeadlineSeconds": 30,
+    "successfulJobsHistoryLimit": 3,
+    "failedJobsHistoryLimit": 5,
+    "jobTemplate": {
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation",
+          "app.kubernetes.io/name": "rotation-controller"
+        }
+      },
+      "spec": {
+        "backoffLimit": 0,
+        "activeDeadlineSeconds": 240,
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "rotation-controller",
+              "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+              "lab.rhbk/owner": "client-secret-rotation"
+            }
+          },
+          "spec": {
+            "serviceAccountName": "rotation-controller",
+            "automountServiceAccountToken": true,
+            "restartPolicy": "Never",
+            "terminationGracePeriodSeconds": 15,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "controller",
+                "image": "image-registry.openshift-image-registry.svc:5000/rhbk-rotation-lab/rotation-controller:build-required",
+                "imagePullPolicy": "IfNotPresent",
+                "args": [
+                  "evaluate"
+                ],
+                "env": [
+                  {
+                    "name": "RHBK_URL",
+                    "value": "https://rhbk-rotation.apps-crc.testing"
+                  },
+                  {
+                    "name": "RHBK_CA_FILE",
+                    "value": "/etc/rhbk-ca/ca.crt"
+                  },
+                  {
+                    "name": "REALM",
+                    "value": "lab-secret-rotation"
+                  },
+                  {
+                    "name": "ADMIN_CLIENT_ID",
+                    "value": "rotation-admin"
+                  },
+                  {
+                    "name": "ADMIN_CLIENT_SECRET_FILE",
+                    "value": "/etc/rotation-admin/client-secret"
+                  },
+                  {
+                    "name": "TARGET_CLIENT_ID",
+                    "value": "catalogo-api"
+                  },
+                  {
+                    "name": "NAMESPACE",
+                    "value": "rhbk-rotation-lab"
+                  },
+                  {
+                    "name": "STATE_NAME",
+                    "value": "rotation-state"
+                  },
+                  {
+                    "name": "LEASE_NAME",
+                    "value": "rotation-catalogo-api"
+                  },
+                  {
+                    "name": "DEPLOYMENT_NAME",
+                    "value": "m2m-probe"
+                  },
+                  {
+                    "name": "HOLD_SECONDS",
+                    "value": "45"
+                  },
+                  {
+                    "name": "ROLLOUT_SECONDS",
+                    "value": "60"
+                  },
+                  {
+                    "name": "MARGIN_SECONDS",
+                    "value": "15"
+                  },
+                  {
+                    "name": "ROTATED_TTL",
+                    "value": "120"
+                  },
+                  {
+                    "name": "ROTATE_INTERVAL",
+                    "value": "180"
+                  },
+                  {
+                    "name": "EPSILON_SECONDS",
+                    "value": "5"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "25m",
+                    "memory": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "300m",
+                    "memory": "192Mi"
+                  }
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "rhbk-ca",
+                    "mountPath": "/etc/rhbk-ca",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "admin",
+                    "mountPath": "/etc/rotation-admin",
+                    "readOnly": true
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "rhbk-ca",
+                "configMap": {
+                  "name": "rhbk-route-ca"
+                }
+              },
+              {
+                "name": "admin",
+                "secret": {
+                  "secretName": "rotation-admin-credential",
+                  "defaultMode": 288
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

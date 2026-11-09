@@ -1,0 +1,69 @@
+{
+  "pin_verified_at": "2026-11-09T18:37:21.747884+00:00",
+  "product_candidate": "26.6.9",
+  "expected_server_version": "26.6.9.redhat-00002",
+  "sources": [
+    "https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html-single/release_notes/index",
+    "CRC packagemanifest/rhbk-operator channel stable-v26.6",
+    "registry.redhat.io authenticated image manifest inspection",
+    "https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/installation-",
+    "https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/customizing-keycloak-",
+    "https://crc.dev/docs/installing/"
+  ],
+  "images": {
+    "rhbk": {
+      "original": "registry.redhat.io/rhbk/keycloak-rhel9@sha256:91937e38d3507d29a4bc5898a77abda62a204b508c77c730cd0bc745dcdb0d03",
+      "digest_arm64": "sha256:cadcb5911714c8ffcd851c0035f04aa399d3677579bcad825b6b296fefe0b288",
+      "index_digest": "sha256:91937e38d3507d29a4bc5898a77abda62a204b508c77c730cd0bc745dcdb0d03",
+      "label_version": "26.6",
+      "label_release": "25",
+      "architecture": "aarch64",
+      "build_date": "2026-11-06T17:34:42",
+      "verified_tag": "registry.redhat.io/rhbk/keycloak-rhel9:26.6-25"
+    },
+    "postgres": {
+      "original": "registry.redhat.io/rhel9/postgresql-16:latest",
+      "digest_arm64": "sha256:172d248599f2f87e0e78bffb6401bcbfc4c07f189ceec40ab76b86268b216797",
+      "index_digest": "sha256:18c881e262861c94e59de14b4723c635acc5c5d82ce59297341a2feebc3ab05e",
+      "label_version": "1",
+      "label_release": "1793637208",
+      "architecture": "aarch64",
+      "build_date": "2026-11-02T16:35:32Z"
+    },
+    "python": {
+      "original": "registry.redhat.io/ubi9/python-312:latest",
+      "digest_arm64": "sha256:1dbe53dbe4194bc25ea213246f7b2625804b2e102e4348d7e8d65507b92fd43b",
+      "index_digest": "sha256:f72227ffc4f3faa3772a6ae91ffc03bcf3c507d6b7a525d2bfe90b3579dcb8af",
+      "label_version": "1",
+      "label_release": "1794217655",
+      "architecture": "aarch64",
+      "build_date": "2026-11-09T09:53:04Z"
+    },
+    "bundle": {
+      "original": "registry.redhat.io/rhbk/keycloak-operator-bundle@sha256:6d43917ace52331b28623246d61a202de7fd49bbc462578b7676ce0c90eeaead",
+      "digest_bundle": "sha256:6d43917ace52331b28623246d61a202de7fd49bbc462578b7676ce0c90eeaead",
+      "index_digest": "",
+      "label_version": "26.6.9",
+      "label_release": "1",
+      "architecture": "x86_64",
+      "build_date": "2026-11-06T17:55:10"
+    },
+    "operator": {
+      "original": "registry.redhat.io/rhbk/keycloak-rhel9-operator@sha256:5d136e0b6bb93f99b8d5ff25c1888cd98e20391b99227bfcda6386986e9603d6",
+      "digest_arm64": "sha256:1be1c23fb1385c9e01ffe3b27afa9a30ad0da3b7c016623529b529ec8f548f1a"
+    }
+  },
+  "operator": {
+    "version": "26.6.9-opr.1",
+    "image": "registry.redhat.io/rhbk/keycloak-rhel9-operator@sha256:5d136e0b6bb93f99b8d5ff25c1888cd98e20391b99227bfcda6386986e9603d6",
+    "mode": "official bundle Deployment/RBAC scoped to lab; create missing official CRDs, preserve existing compatible CRDs"
+  },
+  "platform": {
+    "os": "linux",
+    "architecture": "arm64",
+    "cluster_api": "https://api.crc.testing:6443",
+    "crd_api": "k8s.keycloak.org/v2beta1"
+  },
+  "application_images": {},
+  "reproduction_status": "NOT_RUN on a fresh CRC; source lab version was verified separately"
+}

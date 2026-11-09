@@ -1,0 +1,103 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "k8s.keycloak.org/v2beta1",
+      "kind": "Keycloak",
+      "metadata": {
+        "name": "rhbk",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation"
+        },
+        "namespace": "rhbk-rotation-lab"
+      },
+      "spec": {
+        "instances": 1,
+        "image": "image-registry.openshift-image-registry.svc:5000/rhbk-rotation-lab/rhbk@sha256:cadcb5911714c8ffcd851c0035f04aa399d3677579bcad825b6b296fefe0b288",
+        "startOptimized": false,
+        "features": {
+          "enabled": [
+            "client-secret-rotation"
+          ]
+        },
+        "db": {
+          "vendor": "postgres",
+          "host": "postgresql",
+          "database": "keycloak",
+          "usernameSecret": {
+            "name": "postgres-credential",
+            "key": "username"
+          },
+          "passwordSecret": {
+            "name": "postgres-credential",
+            "key": "password"
+          },
+          "poolInitialSize": 1,
+          "poolMinSize": 1,
+          "poolMaxSize": 5
+        },
+        "http": {
+          "httpEnabled": true
+        },
+        "hostname": {
+          "hostname": "https://rhbk-rotation.apps-crc.testing"
+        },
+        "proxy": {
+          "headers": "xforwarded"
+        },
+        "ingress": {
+          "enabled": false
+        },
+        "bootstrapAdmin": {
+          "user": {
+            "secret": "rhbk-bootstrap"
+          }
+        },
+        "resources": {
+          "requests": {
+            "cpu": "500m",
+            "memory": "768Mi"
+          },
+          "limits": {
+            "cpu": "2",
+            "memory": "1536Mi"
+          }
+        },
+        "additionalOptions": [
+          {
+            "name": "metrics-enabled",
+            "value": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "route.openshift.io/v1",
+      "kind": "Route",
+      "metadata": {
+        "name": "rhbk",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "lab.rhbk/owner": "client-secret-rotation"
+        },
+        "namespace": "rhbk-rotation-lab"
+      },
+      "spec": {
+        "host": "rhbk-rotation.apps-crc.testing",
+        "to": {
+          "kind": "Service",
+          "name": "rhbk-service"
+        },
+        "port": {
+          "targetPort": "http"
+        },
+        "tls": {
+          "termination": "edge",
+          "insecureEdgeTerminationPolicy": "Redirect"
+        }
+      }
+    }
+  ]
+}
