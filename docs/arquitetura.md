@@ -2,7 +2,7 @@
 
 O núcleo combina um controlador periódico, Secrets Kubernetes imutáveis e uma aplicação M2M de demonstração. A decisão de rotacionar ocorre fora do processo RHBK, por Admin REST API; não há SPI, alteração no código do servidor ou atualização automática da credencial dentro de um processo já iniciado.
 
-![Núcleo portável e alternativas de infraestrutura](diagramas/arquitetura.png)
+![Arquitetura do laboratório no OpenShift](diagramas/arquitetura.png)
 
 ## Responsabilidades e limites
 
@@ -18,28 +18,28 @@ O núcleo combina um controlador periódico, Secrets Kubernetes imutáveis e uma
 
 O controlador tem identidade administrativa RHBK própria e ServiceAccount Kubernetes. A sonda não recebe token Kubernetes nem acesso à Admin API. A capacidade do controlador de ler Secrets e criar pods torna **o namespace inteiro** sua fronteira de confiança; não coloque credenciais de outros projetos nele.
 
-## Duas formas de fornecer a infraestrutura
+## Instalação do servidor e da demonstração
 
-**Exemplo CRC.** O fluxo instala o Operator por OLM/OperatorHub, constrói uma imagem RHBK otimizada e fornece PostgreSQL com PVC e uma réplica do servidor. OLM administra o ciclo de vida do Operator; o Operator reconcilia o `Keycloak` CR. O controlador periódico de rotação é outra aplicação, sem extensão do Operator ou SPI no RHBK.
+O laboratório tem dois ciclos de instalação. O **servidor RHBK** usa um namespace dedicado, Operator via OLM, imagem otimizada e PostgreSQL. A **demonstração de rotação** usa outro namespace, com controlador externo, estado, Secrets versionados e aplicação M2M. A ligação entre eles é a URL HTTPS do RHBK e as identidades do realm; os componentes não dependem de um hostname, cluster ou projeto específico.
 
-**Integração OpenShift.** A base usa um RHBK existente, configurado por URL, CA, realm e identidade administrativa autorizada. Cria uma nova aplicação de demonstração e seus recursos em um namespace dedicado; não instala Operator, banco ou infraestrutura de nuvem. O RHBK deve ter a feature e a política compatíveis habilitadas. Registry, arquitetura das imagens, permissões, conectividade TLS e capacidade precisam ser verificados no ambiente escolhido.
+O [procedimento de instalação RHBK](imagem-rhbk.md) é o mesmo em qualquer OpenShift com os serviços necessários disponíveis, inclusive CRC. Namespace, arquitetura, imagens por digest, hostname, capacidade, catálogo OLM e conexão ao banco vêm de parâmetros. PostgreSQL pode ser fornecido pelo ambiente ou pelo template opcional de demonstração. A topologia entregue usa Route com terminação TLS edge e precisa ser adaptada se o ambiente exigir outro modelo de transporte.
 
-O comportamento de rotação foi executado no CRC com a instalação anterior. **Build, migração do Operator para OLM e deploy otimizado foram verificados nesse CRC em 10/11/2026**. O servidor iniciou com `start --optimized`, sem nova augmentation; a feature, health e métricas estavam persistidas. A troca da única réplica causou 24 falhas de autenticação na aplicação, antes do baseline voltar a passar. A rotação posterior v0032 → v0033 também passou, com rejeição da antiga e autenticação da nova. Uma instalação integral em CRC vazio e a integração em **outro cluster OpenShift permanecem `NOT_RUN`**. Consulte [resultados](resultados.md); não há comprovação de compatibilidade universal ou homologação em produção.
+Se o servidor já existir, basta confirmar sua configuração compatível e seguir a [instalação da demonstração](openshift.md). Esse importador cria a aplicação e a automação em um namespace novo; não reconstrói RHBK nem altera seu Operator ou banco. O controlador periódico é uma aplicação independente: não estende o Operator e não instala SPI.
 
-### Preparação da imagem e instalação pelo OLM
+### Preparação da imagem e ciclo de vida
 
 | Etapa | Artefato e responsabilidade |
 |---|---|
-| Construir | O [Dockerfile](../apps/rhbk/Dockerfile) usa a imagem oficial RHBK fixada por digest e executa `kc.sh build` com `client-secret-rotation`, PostgreSQL, health e métricas. Nenhuma credencial, realm ou certificado é incorporado. |
-| Publicar no registry do cluster | O [BuildConfig](../deploy/build/rhbk-buildconfig.json), de estratégia Docker e fonte binária, recebe somente o contexto necessário. O resultado passa pelo ImageStream `rhbk-optimized:lab`; a implantação usa seu digest imutável, não depende da tag. |
-| Declarar a execução | O `Keycloak` CR referencia a imagem construída em `spec.image` com `@sha256` e define `spec.startOptimized: true`. Endpoint, banco, credenciais montadas e demais opções de runtime continuam na configuração de execução. |
-| Reconciliar | OLM acompanha a `Subscription` com aprovação manual e o `ClusterServiceVersion` (CSV). O OperatorGroup seleciona apenas o namespace do laboratório. O Operator instalado reconcilia o CR e os pods RHBK; sua instalação fica visível em **Installed Operators** quando concluída. |
+| Construir | O [Dockerfile](../apps/rhbk/Dockerfile) usa a imagem RHBK por digest e executa `kc.sh build` com `client-secret-rotation`, PostgreSQL, health e métricas. Nenhuma credencial, realm ou certificado é incorporado. |
+| Publicar | O [template de build](../deploy/install/build.json) cria um BuildConfig de fonte binária, builder dedicado e ImageStream. Somente o contexto `apps/rhbk` é enviado; o servidor usa o digest do Build concluído. |
+| Declarar a execução | O [template do servidor](../deploy/install/keycloak.json) gera `Keycloak` CR com `spec.image` por digest e `startOptimized: true`, além da Route. Banco e bootstrap usam referências a Secrets do namespace. |
+| Reconciliar | O [template OLM](../deploy/install/operator.json) declara OperatorGroup restrito ao namespace e Subscription com aprovação Manual. OLM gerencia o Operator; o Operator reconcilia o CR e seus workloads. |
 
-O build e a aplicação do CR são etapas separadas. O [helper da imagem](../scripts/rhbk_image.py) registra o digest concluído e a procedência do Dockerfile/base; não aplica o CR. A otimização antecipa a preparação do servidor para o build da imagem. Alterar uma opção de build exige reconstruir a imagem; `startOptimized: true` não acrescenta uma feature ausente. A versão da imagem precisa permanecer compatível com a do Operator. Referência: [RHBK 26.6 — construção de imagens otimizadas](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/pdf/server_configuration_guide/Red_Hat_build_of_Keycloak-26.6-Server_Configuration_Guide-en-US.pdf).
+A configuração fica nos exemplos [OpenShift](../config/rhbk-install.openshift.env) e [CRC](../config/rhbk-install.crc.env), com o mesmo conjunto de parâmetros. Os comandos de renderização apenas produzem manifests locais. Criação de recursos, revisão do InstallPlan e instalação são passos explícitos feitos com o contexto escolhido. Nenhum componente cria infraestrutura de nuvem ou habilita o registry global do cluster.
 
-Esse fluxo de construção automatizada é o exemplo CRC/ARM64. A integração com RHBK existente não instala OLM nem reconstrói o servidor remoto; cabe ao responsável por esse RHBK prover uma configuração compatível.
+A otimização antecipa a preparação do servidor para o build da imagem. Alterar uma opção de build exige reconstruí-la; `startOptimized: true` não acrescenta uma feature ausente. A versão da imagem precisa ser compatível com o Operator. As CRDs são globais, mesmo quando o OperatorGroup é local, e seu impacto precisa ser revisado antes da aprovação OLM. Referências: [imagens customizadas](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/customizing-keycloak-) e [instalação do Operator](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/installation-).
 
-As CRDs são compartilhadas pelo cluster, mesmo com o Operator restrito ao namespace. A aprovação do exemplo CRC verifica o plano e recusa mudança na especificação das CRDs existentes. Os comandos de instalação e a migração do Operator manual estão em [operação](operacao.md); o [guia da imagem](imagem-rhbk.md) descreve a adaptação do build a outro OpenShift.
+A arquitetura não representa disponibilidade ou estado atual de um cluster. Os resultados reais de build, OLM, autenticação e rotação do laboratório CRC estão separados em [resultados](resultados.md). O procedimento comum de instalação em um ambiente novo e sua execução em outro cluster ainda são `NOT_RUN`; parametrização não é homologação universal.
 
 ## Contrato de configuração
 
@@ -73,13 +73,13 @@ Esses nomes precisam permanecer coerentes entre configuração, manifests e RBAC
 | Espera antes do rollout | 45 s |
 | Orçamento de rollout / margem | 60 s / 15 s |
 
-Os desenhos representam esse perfil longo de demonstração. O [perfil curto](../realm/profile-short.json), com principal de 300 s, anterior de 120 s e janela de atualização de 60 s, serve aos ensaios CRC que aguardam vencimentos reais. Ele não é o perfil longo apresentado acima; os ensaios temporizados precisam conferir a política efetiva antes de criar seus clients.
+Os desenhos usam esses valores apenas como exemplo configurável do laboratório. O [perfil curto](../realm/profile-short.json), com principal de 300 s, anterior de 120 s e janela de atualização de 60 s, serve aos ensaios CRC que aguardam vencimentos reais. Ele não é o perfil longo apresentado acima; os ensaios temporizados precisam conferir a política efetiva antes de criar seus clients.
 
 O TTL longo é um parâmetro didático; não é uma recomendação de política de segurança. A espera, o orçamento e a margem somam 120 segundos, mas o controlador ainda precisa conferir a janela efetiva nos metadados do servidor. Atrasos, indisponibilidade de capacidade e pausas do host podem impedir a troca segura.
 
-O mínimo de 300 segundos torna a rotação elegível; a execução depende da próxima avaliação e do agendamento. Na demonstração, o intervalo automático **v15 → v16 foi 359,705 segundos**, aproximadamente seis minutos. Não há promessa de uma rotação exatamente a cada cinco minutos.
+O mínimo de 300 segundos torna a rotação elegível; a execução depende da próxima avaliação e do agendamento. O alinhamento com o CronJob pode acrescentar mais um minuto, além do tempo de agendamento. Não há promessa de uma rotação exatamente a cada cinco minutos.
 
-No primeiro POST manual **v13 → v14**, a expiração informada para S2 permaneceu em 2036 e avançou **252 segundos** em relação ao prazo anterior. Isso demonstra renovação do timestamp nesse ensaio. Não significa que a validade foi acompanhada até 2036. Essas medições antecedem a instalação otimizada via OLM. Os resultados e seu alcance estão em [resultados](resultados.md).
+O POST renova o prazo da nova credencial segundo a política efetiva; a anterior passa a usar o prazo de convivência. As medições observadas, as versões utilizadas e seus limites estão em [resultados](resultados.md). O desenho da sequência é conceitual, não um registro de uma execução específica.
 
 ## Observação, recuperação e suporte
 

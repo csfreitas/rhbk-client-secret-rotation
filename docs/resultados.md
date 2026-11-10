@@ -1,5 +1,18 @@
 # Comportamento medido e limites
 
+## Instalação comum OpenShift — 10/11/2026
+
+A instalação nova passou a usar os mesmos templates e comandos no CRC e nos demais ambientes OpenShift, com valores separados em arquivos de parâmetros. Os desenhos foram generalizados; resultados de uma execução não fazem parte da arquitetura conceitual.
+
+| Verificação | Resultado real |
+|---|---|
+| Testes locais | 294 aprovados, incluindo renderização nativa dos exemplos AMD64 e ARM64 e validação dos parâmetros. |
+| Validação pela API CRC | 12 recursos aceitos por `oc create --dry-run=server --validate=strict`: OLM, builder/RBAC, imagem/build, Keycloak/Route e banco opcional. Foram usados nomes de verificação distintos dos recursos existentes. |
+| Alterações no cluster nesta revisão | Nenhuma. O `dry-run` não persistiu recursos nem acionou build, instalação OLM ou rollout. |
+| Instalação completa pelo novo procedimento | `NOT_RUN`. Não houve nova instalação integral no CRC nem execução em outro cluster. |
+
+Essas verificações comprovam renderização e aceitação dos manifests pelas APIs instaladas, não disponibilidade de imagens, agendamento, conectividade do banco ou funcionamento de um ambiente ainda não instalado. As execuções reais anteriores estão registradas abaixo.
+
 ## Imagem otimizada e migração para OLM — 10/11/2026
 
 Execução no CRC ARM64 existente, preservando o realm, as credenciais e o estado do laboratório. Os horários desta seção são de **America/Sao_Paulo (BRT)**. Não houve novo bootstrap.

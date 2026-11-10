@@ -72,6 +72,7 @@ openshift-rotate-once:
 openshift-reconcile:
 	$(PYTHON) scripts/control.py reconcile --environment openshift
 
+# Maintenance of the original CRC installation; new installs use rhbk-render.
 .PHONY: build-rhbk operator-prepare operator-approve operator-status
 build-rhbk:
 	$(PYTHON) scripts/rhbk_image.py build
@@ -81,3 +82,13 @@ operator-approve:
 	$(PYTHON) scripts/operator_olm.py approve --plan "$(PLAN)"
 operator-status:
 	$(PYTHON) scripts/operator_olm.py check
+
+# Common installation: the values file is the only environment selection.
+PARAMS ?= .private/rhbk-install.env
+.PHONY: rhbk-render rhbk-render-server rhbk-render-postgres
+rhbk-render:
+	$(PYTHON) scripts/render_install.py --params "$(PARAMS)"
+rhbk-render-server:
+	$(PYTHON) scripts/render_install.py --params "$(PARAMS)" --component keycloak --image "$(RHBK_IMAGE)"
+rhbk-render-postgres:
+	$(PYTHON) scripts/render_install.py --params "$(PARAMS)" --component postgres-demo

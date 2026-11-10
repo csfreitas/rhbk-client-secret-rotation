@@ -1,0 +1,229 @@
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "rhbk-postgres-demo"
+  },
+  "message": "Optional single-instance PostgreSQL for a new demonstration only. Existing database credentials are referenced, never generated.",
+  "parameters": [
+    {
+      "name": "NAMESPACE",
+      "description": "Dedicated namespace selected for this installation.",
+      "required": true
+    },
+    {
+      "name": "PG_NAME",
+      "description": "Name of the demonstration database Deployment and Service.",
+      "required": true
+    },
+    {
+      "name": "PG_IMAGE",
+      "description": "Compatible Red Hat PostgreSQL 16 image pinned by digest.",
+      "required": true
+    },
+    {
+      "name": "PG_STORAGE_CLASS",
+      "description": "StorageClass available in this cluster.",
+      "required": true
+    },
+    {
+      "name": "PG_STORAGE_SIZE",
+      "description": "Persistent volume size, for example 1Gi.",
+      "required": true
+    },
+    {
+      "name": "ARCHITECTURE",
+      "description": "Compatible node architecture: amd64 or arm64.",
+      "required": true
+    },
+    {
+      "name": "DB_NAME",
+      "description": "Database name created by the PostgreSQL image.",
+      "required": true
+    },
+    {
+      "name": "DB_USERNAME_SECRET",
+      "description": "Existing Secret containing the database username.",
+      "required": true
+    },
+    {
+      "name": "DB_USERNAME_KEY",
+      "description": "Key containing the database username.",
+      "required": true
+    },
+    {
+      "name": "DB_PASSWORD_SECRET",
+      "description": "Existing Secret containing the database password.",
+      "required": true
+    },
+    {
+      "name": "DB_PASSWORD_KEY",
+      "description": "Key containing the database password.",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "${PG_NAME}-data",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "${PG_STORAGE_CLASS}",
+        "resources": {
+          "requests": {
+            "storage": "${PG_STORAGE_SIZE}"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "${PG_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "selector": {
+          "app.kubernetes.io/name": "${PG_NAME}"
+        },
+        "ports": [
+          {
+            "name": "postgresql",
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "${PG_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "${PG_NAME}"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+              "app.kubernetes.io/managed-by": "rhbk-install-templates",
+              "app.kubernetes.io/name": "${PG_NAME}"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "nodeSelector": {
+              "kubernetes.io/arch": "${ARCHITECTURE}"
+            },
+            "containers": [
+              {
+                "name": "postgresql",
+                "image": "${PG_IMAGE}",
+                "env": [
+                  {
+                    "name": "POSTGRESQL_USER",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "${DB_USERNAME_SECRET}",
+                        "key": "${DB_USERNAME_KEY}"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POSTGRESQL_DATABASE",
+                    "value": "${DB_NAME}"
+                  },
+                  {
+                    "name": "POSTGRESQL_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "${DB_PASSWORD_SECRET}",
+                        "key": "${DB_PASSWORD_KEY}"
+                      }
+                    }
+                  }
+                ],
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  },
+                  "runAsNonRoot": true
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "/usr/libexec/check-container"
+                    ]
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/pgsql/data"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "${PG_NAME}-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,82 +1,217 @@
-# Imagem RHBK otimizada e Operator via OLM
+# Instalar RHBK no OpenShift
 
-O [Dockerfile](../apps/rhbk/Dockerfile) prepara `client-secret-rotation`, PostgreSQL, health e métricas com `kc.sh build`. O [BuildConfig](../deploy/build/rhbk-buildconfig.json) executa esse build dentro do OpenShift. O resultado é usado por digest no `Keycloak` CR, com `startOptimized: true`; o Operator instalado pelo OLM reconcilia o servidor. Nenhum secret de client, senha de banco ou certificado entra na imagem.
+Este é o procedimento de instalação para **CRC e demais ambientes OpenShift**. O Dockerfile, os templates e os comandos são os mesmos; muda somente o arquivo de parâmetros. O fluxo instala o Operator pelo OLM, constrói a imagem otimizada no cluster e cria o servidor por um `Keycloak` CR.
 
-**Build, migração OLM e execução otimizada foram verificados no CRC existente em 10/11/2026**, com RHBK `26.6.9.redhat-00002` e Operator `26.6.9-opr.1`. O servidor iniciou com `start --optimized`, sem nova augmentation, e a feature, health e métricas ficaram persistidas na imagem. A migração teve interrupção; o baseline e a rotação posterior foram aprovados, conforme [resultados](resultados.md). Uma instalação integral em CRC vazio e o exemplo em outro OpenShift abaixo continuam `NOT_RUN`. O helper `scripts/rhbk_image.py` permanece restrito ao CRC/ARM64; nesse ambiente, use a sequência de [operação](operacao.md).
+Os [templates](../deploy/install/) usam APIs nativas do OpenShift. O [Dockerfile](../apps/rhbk/Dockerfile) prepara `client-secret-rotation`, PostgreSQL, health e métricas com `kc.sh build`. Nenhuma senha, client secret, certificado ou configuração de realm entra na imagem. A automação de rotação é instalada depois, pelo [guia da demonstração](openshift.md).
 
-## Build em outro OpenShift
+**Validação:** 294 testes locais aprovados, renderização dos dois exemplos e 12 recursos aceitos pelo `dry-run` do servidor CRC em 10/11/2026, sem criar recursos. Os componentes já foram executados no laboratório anterior, conforme [resultados](resultados.md). A instalação integral pelo procedimento comum abaixo em um ambiente novo ainda é `NOT_RUN`. Não execute essa instalação sobre o laboratório que já está em operação; para ele, consulte [manutenção CRC](operacao.md).
 
-Requer namespace dedicado já autorizado, Build API, registry interno, permissão de build e imagem base RHBK compatível com a arquitetura dos nós. Selecione uma versão compatível com o Operator e um digest oficial verificado. Substitua **todos** os marcadores:
+## 1. Escolher os parâmetros
 
-```sh
-RHBK_KUBECONFIG=/caminho/privado/kubeconfig
-RHBK_CONTEXT=CONTEXTO_EXPLICITO
-RHBK_NAMESPACE=NAMESPACE_DEDICADO
-export RHBK_BASE_IMAGE=registry.redhat.io/rhbk/keycloak-rhel9@sha256:DIGEST_VERIFICADO
-RHBK_AUTH_FILE=/caminho/privado/registry-auth.json
+Requisitos do ambiente:
 
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" \
-  config view --minify -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" \
-  -n "$RHBK_NAMESPACE" get namespace "$RHBK_NAMESPACE"
-```
+- OpenShift com OLM, Build API, registry interno e Route disponíveis. O procedimento não habilita nem altera esses serviços globais.
+- Namespace novo reservado ao servidor; acesso para criar seus recursos e instalar o Operator. A aprovação OLM pode alterar CRDs globais e exige revisão do administrador do cluster.
+- Imagem base oficial RHBK, ou seu mirror autorizado, fixada por digest e compatível com a arquitetura selecionada. A versão precisa ser compatível com o Operator escolhido; os exemplos não consultam a última versão automaticamente.
+- PostgreSQL acessível e suas credenciais em Secrets, ou o banco opcional de demonstração abaixo. DNS, capacidade e política de rede precisam permitir a comunicação.
+- Hostname coberto pelo certificado do ingress, CA confiável e acesso autenticado às imagens do catálogo Red Hat. Esta topologia usa **Route com TLS edge**, HTTP entre router e RHBK e `xforwarded`. Outras topologias de TLS exigem ajustar o CR e a Route em conjunto.
+- No computador do operador: Git, Make, Python 3.12+, `oc` compatível com o cluster e `curl`.
 
-Confira API e namespace antes de escrever recursos. Mantenha a validação TLS. Se o builder já possui acesso ao registry, preserve sua configuração. Caso precise de autenticação adicional, obtenha o arquivo com `podman login --authfile "$RHBK_AUTH_FILE" registry.redhat.io` ou equivalente, por prompt; não passe senha em argumento. O bloco seguinte cria um Secret novo e o associa apenas ao builder:
-
-```sh
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  create secret generic rhbk-build-pull --type=kubernetes.io/dockerconfigjson \
-  --from-file=.dockerconfigjson="$RHBK_AUTH_FILE"
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  secrets link builder rhbk-build-pull --for=pull
-```
-
-Na raiz do checkout, prepare o BuildConfig local. O template não fixa namespace nem digest para outro cluster:
+Na raiz do checkout:
 
 ```sh
 umask 077
 mkdir -p .private
-python3 - <<'PY'
-import json, os, re
-from pathlib import Path
-base = os.environ['RHBK_BASE_IMAGE']
-assert re.fullmatch(r'registry\.redhat\.io/rhbk/keycloak-rhel9@sha256:[0-9a-f]{64}', base), 'Informe um digest oficial real'
-obj = json.loads(Path('deploy/build/rhbk-buildconfig.json').read_text())
-obj['spec']['strategy']['dockerStrategy']['buildArgs'] = [{'name': 'RHBK_IMAGE', 'value': base}]
-Path('.private/rhbk-buildconfig.json').write_text(json.dumps(obj, indent=2) + '\n')
-PY
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  create imagestream rhbk-optimized
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  create -f .private/rhbk-buildconfig.json
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  start-build rhbk-optimized --from-dir=apps/rhbk --follow --wait
+cp config/rhbk-install.openshift.env .private/rhbk-install.env
 ```
 
-`create` não adota recursos existentes. Se um nome já existir, revise seu proprietário e configuração antes de prosseguir. O contexto enviado contém somente o Dockerfile; não envie a raiz do repositório ou `.private/` ao build. Em cluster com arquiteturas mistas, acrescente ao BuildConfig `spec.nodeSelector.kubernetes.io/arch` com a arquitetura escolhida e assegure compatibilidade dos nós RHBK.
+Para CRC, use `config/rhbk-install.crc.env` como origem, no lugar do arquivo acima. Edite o arquivo privado com os valores reais. Não copie os dois exemplos por cima um do outro. Os campos principais são:
 
-Confira o **Build exato** iniciado, substituindo `rhbk-optimized-N` pelo seu nome:
+| Grupo | Parâmetros |
+|---|---|
+| Destino | `KUBECONFIG`, `CONTEXT`, `EXPECTED_SERVER`, `NAMESPACE` |
+| Imagens e nós | `ARCHITECTURE`, `RHBK_BASE_IMAGE`, `BUILD_NAME` |
+| Operator | `OPERATOR_GROUP`, `OPERATOR_CHANNEL`, `OPERATOR_CSV`, `OPERATOR_CATALOG`, `OPERATOR_CATALOG_NAMESPACE` |
+| Servidor | `RHBK_NAME`, `RHBK_HOSTNAME`, `RHBK_INSTANCES`, recursos de CPU/memória, `RHBK_CA_FILE` |
+| Banco | `DB_HOST`, `DB_PORT`, `DB_NAME`, nomes e chaves dos Secrets de usuário/senha |
+| Bootstrap | `BOOTSTRAP_SECRET`, com chaves `username` e `password` |
+| Banco opcional | `PG_NAME`, `PG_IMAGE`, `PG_STORAGE_CLASS`, `PG_STORAGE_SIZE` |
+
+Use caminhos absolutos para kubeconfig e CA. O formato é `CHAVE=valor`, sem aspas, espaços ou expressões de shell; escolha caminhos sem espaços. O arquivo contém referências a Secrets, nunca seus valores. O digest de `RHBK_IMAGE`, imagem final otimizada, será obtido do Build; não use o digest da imagem base nesse campo.
 
 ```sh
-oc --kubeconfig "$RHBK_KUBECONFIG" --context "$RHBK_CONTEXT" -n "$RHBK_NAMESPACE" \
-  get build rhbk-optimized-N \
+make rhbk-render PARAMS=.private/rhbk-install.env
+```
+
+Esse comando é local e gera `.private/rhbk-install/operator.json` e `build.json`. Revise os nomes, namespace, imagem base e escopo do Operator antes de continuar. Os templates não criam recursos de nuvem.
+
+Depois da validação, carregue somente o arquivo que você acabou de revisar e defina um comando que sempre usa seu contexto explícito:
+
+```sh
+. .private/rhbk-install.env
+oc_target() {
+  oc --kubeconfig "$KUBECONFIG" --context "$CONTEXT" -n "$NAMESPACE" "$@"
+}
+
+oc_target config view --minify \
+  -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
+oc_target get namespace kube-system -o jsonpath='{.metadata.uid}{"\n"}'
+oc_target get nodes -L kubernetes.io/arch
+```
+
+Compare a API com `EXPECTED_SERVER`, confirme o cluster e a presença de nós da arquitetura escolhida. O kubeconfig deve validar TLS. Em outro terminal, carregue novamente o arquivo e a função; não substitua esses comandos por `oc` com contexto ambiente.
+
+## 2. Preparar namespace, banco e Secrets
+
+```sh
+oc_target create namespace "$NAMESPACE"
+```
+
+Se o namespace já existir, pare: este roteiro de instalação nova não adota recursos existentes. Um administrador pode preparar um namespace dedicado por outro processo, mas precisa revisar conflitos e propriedade antes de usar os manifests. Não use `apply` para contornar um erro de recurso já existente.
+
+Provisione os Secrets de banco e bootstrap nesse namespace pelo processo autorizado do ambiente. Se quiser criar os Secrets dos exemplos, cujo usuário e senha do banco ficam no mesmo objeto, digite os valores em arquivos privados:
+
+```sh
+python3 - <<'PY'
+from getpass import getpass
+from pathlib import Path
+for name in ('db-username', 'db-password', 'bootstrap-username', 'bootstrap-password'):
+    path = Path('.private') / name
+    path.write_text(getpass(name + ': '))
+    path.chmod(0o600)
+PY
+```
+
+Confira que `DB_USERNAME_SECRET` e `DB_PASSWORD_SECRET` têm o mesmo valor para este bloco; caso use Secrets separados, provisione cada um com sua chave correspondente:
+
+```sh
+oc_target create secret generic "$DB_USERNAME_SECRET" \
+  --from-file="$DB_USERNAME_KEY=.private/db-username" \
+  --from-file="$DB_PASSWORD_KEY=.private/db-password"
+oc_target create secret generic "$BOOTSTRAP_SECRET" \
+  --from-file=username=.private/bootstrap-username \
+  --from-file=password=.private/bootstrap-password
+```
+
+Para um banco existente, confirme database, porta, credenciais e conectividade e siga à próxima seção. O servidor não cria o database externo.
+
+**Banco opcional de demonstração:** em qualquer OpenShift, inclusive CRC, preencha `PG_IMAGE` por digest, StorageClass e tamanho do PVC. Configure `DB_HOST` igual a `PG_NAME`, porta 5432, e o usuário/database que o container PostgreSQL provisionará. O template usa os mesmos Secrets preparados acima. A imagem precisa estar acessível à ServiceAccount `default` desse namespace; se necessário, provisione um pull Secret e associe com `oc_target secrets link default NOME_DO_SECRET --for=pull` antes do deploy:
+
+```sh
+make rhbk-render-postgres PARAMS=.private/rhbk-install.env
+oc_target create --dry-run=server -f .private/rhbk-install/postgres-demo.json
+oc_target create -f .private/rhbk-install/postgres-demo.json
+oc_target rollout status "deployment/$PG_NAME" --timeout=300s
+oc_target get pvc
+```
+
+Aguarde o PVC `Bound` e o Deployment pronto. Esse PostgreSQL de uma réplica é uma dependência didática; não é uma solução de banco altamente disponível ou de backup.
+
+## 3. Instalar o Operator pelo OLM
+
+Antes da criação, o administrador deve conferir os Operators existentes e evitar dois reconciliadores sobre o mesmo namespace. CRDs Keycloak são globais, mesmo com OperatorGroup restrito ao namespace. O campo `startingCSV` indica a versão inicial desejada; **aprovação Manual** também é necessária para controlar planos posteriores. Consulte a [instalação oficial do Operator RHBK 26.6](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/installation-).
+
+```sh
+oc_target get operatorgroups.operators.coreos.com --all-namespaces
+oc_target get subscriptions.operators.coreos.com --all-namespaces
+oc_target create --dry-run=server -f .private/rhbk-install/operator.json
+oc_target create -f .private/rhbk-install/operator.json
+oc_target get subscription rhbk-operator \
+  -o jsonpath='{.status.installPlanRef.name}{"\n"}'
+```
+
+Aguarde o nome do InstallPlan aparecer. Copie o nome real, leia o plano completo e confira o CSV esperado, catálogo, permissões e impacto nas CRDs compartilhadas. Nenhum comando do projeto aprova esse plano automaticamente:
+
+```sh
+PLAN=install-NOME_REAL
+oc_target get installplan "$PLAN" -o yaml
+```
+
+Depois da revisão, aprove somente esse plano:
+
+```sh
+oc_target patch installplan "$PLAN" --type=merge \
+  -p '{"spec":{"approved":true}}'
+oc_target wait "clusterserviceversion/$OPERATOR_CSV" \
+  --for=create --timeout=300s
+oc_target wait "clusterserviceversion/$OPERATOR_CSV" \
+  --for=jsonpath='{.status.phase}'=Succeeded --timeout=600s
+oc_target rollout status deployment/rhbk-operator --timeout=300s
+oc_target get subscription rhbk-operator \
+  -o jsonpath='{.status.installedCSV}{"\n"}'
+```
+
+O CSV instalado deve ser o configurado. Na console, selecione o namespace e abra **Operators → Installed Operators**. Se o catálogo resolver outra versão ou houver erro no plano, investigue antes de seguir. A migração de um Operator manual requer uma transição específica; este roteiro é de instalação nova.
+
+## 4. Construir a imagem otimizada
+
+```sh
+oc_target create --dry-run=server -f .private/rhbk-install/build.json
+oc_target create -f .private/rhbk-install/build.json
+```
+
+O manifest cria um builder dedicado, permissões locais de publicação/pull, ImageStream e BuildConfig. Se a imagem base exigir credencial além do acesso já configurado no cluster, use um arquivo privado obtido por `podman login --authfile` ou pelo processo da organização. Não passe senha como argumento. Crie um Secret novo e associe ao builder:
+
+```sh
+REGISTRY_AUTH_FILE=/caminho/privado/registry-auth.json
+oc_target create secret generic rhbk-build-pull \
+  --type=kubernetes.io/dockerconfigjson \
+  --from-file=.dockerconfigjson="$REGISTRY_AUTH_FILE"
+oc_target secrets link "$BUILD_NAME-builder" rhbk-build-pull --for=pull
+```
+
+Se o builder já consegue obter a imagem, omita esse bloco. Inicie uma vez e guarde o nome retornado:
+
+```sh
+BUILD_REF=$(oc_target start-build "$BUILD_NAME" --from-dir=apps/rhbk -o name)
+printf '%s\n' "$BUILD_REF"
+oc_target logs -f "$BUILD_REF"
+oc_target wait "$BUILD_REF" --for=jsonpath='{.status.phase}'=Complete --timeout=900s
+oc_target get "$BUILD_REF" \
   -o jsonpath='{.status.phase}{"\n"}{.status.outputDockerImageReference}{"\n"}{.status.output.to.imageDigest}{"\n"}'
 ```
 
-Exija `Complete` e digest `sha256` preenchido. Forme a referência do mesmo repositório publicado substituindo a tag `:lab` por `@sha256:DIGEST_DO_BUILD`. Não use um digest de build anterior nem apenas a tag mutável. Se outro namespace consumir a imagem, o administrador precisa autorizar seu pull.
+O diretório `apps/rhbk` contém somente o Dockerfile. Não envie a raiz do checkout ou `.private` ao build. Se perder a sessão, recupere o nome em `oc_target get builds` e acompanhe **o mesmo Build**, sem iniciar outro para tentar recuperar a resposta.
 
-## Operator e CR
+Somente depois de `Complete`, obtenha a referência imutável daquele Build:
 
-Na console, em **Operators → OperatorHub**, selecione o **Red Hat build of Keycloak Operator** do catálogo Red Hat. Escolha a versão/canal compatíveis, o namespace dedicado e aprovação **Manual**. Revise o InstallPlan, inclusive CRDs e escopo do OperatorGroup, antes de aprovar; prossiga somente com o CSV `Succeeded` em **Installed Operators**. CRDs são globais: uma instalação nova não deve alterar versões compartilhadas sem revisão. Para migrar um Operator manual, use um procedimento de transição específico; não inicie dois reconciliadores para o mesmo CR.
-
-Na configuração completa do seu `Keycloak` CR, use estes campos; o trecho não é um manifest completo:
-
-```yaml
-spec:
-  image: image-registry.openshift-image-registry.svc:5000/NAMESPACE_DEDICADO/rhbk-optimized@sha256:DIGEST_DO_BUILD
-  startOptimized: true
+```sh
+BUILD_OUTPUT=$(oc_target get "$BUILD_REF" -o jsonpath='{.status.outputDockerImageReference}')
+BUILD_DIGEST=$(oc_target get "$BUILD_REF" -o jsonpath='{.status.output.to.imageDigest}')
+RHBK_IMAGE="${BUILD_OUTPUT%:*}@${BUILD_DIGEST}"
+make rhbk-render-server PARAMS=.private/rhbk-install.env RHBK_IMAGE="$RHBK_IMAGE"
 ```
 
-Configure conexão de banco, referências a Secrets, hostname, TLS/HTTP e proxy no CR conforme sua topologia. As opções de build já estão na imagem; alterar uma delas exige novo build e novo digest. Não coloque senhas em `additionalOptions` ou no Dockerfile. Verifique readiness, versão efetiva, feature habilitada e autenticação antes de instalar a [demonstração de rotação](openshift.md).
+Revise `.private/rhbk-install/keycloak.json`: `spec.image` precisa conter o digest concluído e `startOptimized` precisa ser `true`. Usar o digest evita que uma mudança posterior na tag altere a imagem escolhida. O build e o servidor são etapas separadas; alterar uma feature de build exige reconstruir a imagem. Veja [imagens customizadas com o Operator](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/operator_guide/customizing-keycloak-).
 
-Otimizar a imagem não altera o status Technology Preview de `client-secret-rotation` no RHBK 26.6. Referência oficial: [RHBK 26.6 — configuração e imagens otimizadas](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/pdf/server_configuration_guide/Red_Hat_build_of_Keycloak-26.6-Server_Configuration_Guide-en-US.pdf).
+## 5. Criar e verificar o servidor
+
+```sh
+oc_target create --dry-run=server -f .private/rhbk-install/keycloak.json
+oc_target create -f .private/rhbk-install/keycloak.json
+oc_target wait "keycloak/$RHBK_NAME" --for=condition=Ready --timeout=600s
+oc_target rollout status "statefulset/$RHBK_NAME" --timeout=600s
+oc_target get keycloak "$RHBK_NAME" \
+  -o jsonpath='{.spec.image}{"\n"}{.spec.startOptimized}{"\n"}'
+oc_target get pods -o wide
+oc_target get route "$RHBK_NAME"
+```
+
+Confirme que todas as réplicas estão prontas e usam a imagem construída. Para conferir versão, modo de início e configuração de build sem exibir configurações completas:
+
+```sh
+oc_target exec "$RHBK_NAME-0" -- /opt/keycloak/bin/kc.sh --version
+oc_target get statefulset "$RHBK_NAME" \
+  -o jsonpath='{.spec.template.spec.containers[?(@.name=="keycloak")].args}{"\n"}'
+oc_target exec "$RHBK_NAME-0" -- sh -c \
+  '/opt/keycloak/bin/kc.sh show-config | grep -E "kc\.(features|health-enabled|metrics-enabled) ="'
+curl --fail --silent --show-error --cacert "$RHBK_CA_FILE" \
+  "https://$RHBK_HOSTNAME/realms/master/.well-known/openid-configuration" \
+  -o .private/rhbk-install/discovery.json
+```
+
+Exija a versão planejada, `start --optimized`, a feature `client-secret-rotation` e health/métricas habilitados. O último comando precisa terminar sem erro TLS ou HTTP; use a CA confiável do ambiente, nunca `-k`. Readiness comprova a prontidão do workload; a demonstração posterior comprovará autenticação e rotação com clients reais.
+
+Acesse `https://RHBK_HOSTNAME/admin/` com a credencial temporária de bootstrap e conclua a administração inicial conforme o procedimento do produto. Depois siga [aplicação e automação de rotação](openshift.md), criando um namespace separado para a demonstração. Não execute os scripts antigos de bootstrap CRC sobre esta instalação.
+
+No RHBK 26.6, `client-secret-rotation` continua [Technology Preview](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/server_administration_guide/assembly-managing-clients_server_administration_guide). A portabilidade dos manifests não representa homologação de produção, HA, novas versões ou todas as topologias possíveis de OpenShift.

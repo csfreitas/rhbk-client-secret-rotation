@@ -19,41 +19,33 @@ Os 3650 dias são um prazo finito de demonstração, não uma recomendação uni
 
 Em 10/11/2026, o build otimizado, a migração do Operator para OLM e o deploy com `start --optimized` foram executados nesse CRC. A substituição da única réplica RHBK causou **24 falhas de autenticação** nos dois pods M2M; depois, o baseline voltou a passar. Isso não foi uma migração sem interrupção. A rotação posterior **v0032 → v0033 passou**, com rejeição da antiga e autenticação da nova; veja [resultados](docs/resultados.md).
 
-## Escolha o ambiente
+## Instalar e usar
 
-| Caminho | Requisitos e escopo | Validação |
-|---|---|---|
-| [OpenShift com RHBK existente](docs/openshift.md) | API/contexto explícitos, namespace dedicado, URL/CA, realm/client já provisionados e imagens compatíveis com os nós. Instala somente a automação e a aplicação de demonstração. | Configuração/renderização e proteções testadas localmente; implantação em outro cluster **não executada**. |
-| [Exemplo completo no CRC](docs/operacao.md) | CRC Linux/ARM64; imagem RHBK otimizada por BuildConfig, Operator via OLM com aprovação manual, PostgreSQL e aplicações com versões fixadas. | Build, migração OLM, deploy otimizado, baseline e rotação posterior executados. Instalação integral de um segundo CRC vazio **não executada**. |
+A instalação do RHBK é **a mesma no CRC e nos demais ambientes OpenShift**: Operator pelo OLM, imagem otimizada pelo BuildConfig e servidor declarado por um `Keycloak` CR. Os valores de namespace, arquitetura, hostname, banco, imagens e recursos ficam em um arquivo de parâmetros.
 
-O núcleo não exige hostname `crc.testing`, nó `crc`, ARM64 ou o `client_id` original. Esses valores ficam no exemplo CRC. No caminho OpenShift, contexto, API e UIDs são conferidos antes de operações; não há uso implícito do contexto global do `oc`.
+| Necessidade | Guia |
+|---|---|
+| Instalar RHBK, inclusive em um CRC novo | [Instalação comum OpenShift](docs/imagem-rhbk.md) |
+| Instalar a demonstração conectada a esse RHBK ou a um servidor existente | [Aplicação e automação de rotação](docs/openshift.md) |
+| Operar o laboratório CRC que já está instalado | [Operação e manutenção CRC](docs/operacao.md) |
 
-O contrato atual é **uma aplicação M2M demonstrativa e um client por namespace**. Os nomes de recursos, realm, client, prefixo dos Secrets, imagens e prazos são configuráveis. Adaptar a distribuição para uma aplicação existente exige que ela carregue a nova credencial no rollout; esta base não altera Deployments arbitrários. O caminho de integração com RHBK existente não provisiona a infraestrutura desse servidor.
-
-## Instalar RHBK otimizado no CRC
-
-Depois de preparar kubeconfig e autenticação privada conforme o [guia CRC](docs/operacao.md), siga a ordem:
+Para começar uma instalação nova, escolha **um** exemplo e preencha os dados reais do ambiente:
 
 ```sh
-make preflight
-make setup              # namespace, registry e inspeção do bundle; não instala Operator/CRDs
-make mirror
-make build-rhbk         # constrói a imagem otimizada e registra seu digest
-make operator-prepare   # OperatorGroup + Subscription com aprovação Manual
+umask 077
+mkdir -p .private
+cp config/rhbk-install.openshift.env .private/rhbk-install.env
+# Para CRC, copie config/rhbk-install.crc.env no lugar do exemplo acima.
+make rhbk-render PARAMS=.private/rhbk-install.env
 ```
 
-Revise o InstallPlan indicado pela Subscription. Substitua `install-NOME_REAL` pelo nome conferido antes de aprovar:
+A renderização é local: produz os manifests para revisão e não altera o cluster. Continue pelo [guia comum](docs/imagem-rhbk.md), que contém os comandos de instalação, build e verificação. Os exemplos não contêm senhas nem selecionam automaticamente uma nova versão do produto.
 
-```sh
-make operator-approve PLAN=install-NOME_REAL
-make operator-status    # exige CSV Succeeded e Operator pronto
-make deploy             # CR referencia o digest construído, com startOptimized: true
-make build              # imagens da aplicação e do controlador de rotação
-make bootstrap
-make baseline
-```
+O [Dockerfile](apps/rhbk/Dockerfile) e os [templates de instalação](deploy/install/) são os artefatos comuns. O PostgreSQL de demonstração é opcional; a instalação também aceita um banco já fornecido pelo ambiente. Os scripts antigos `setup.py`, `rhbk_image.py`, `operator_olm.py` e `lab.py deploy` ficam para manutenção da instalação CRC anterior, sem participar do novo procedimento.
 
-O [Dockerfile RHBK](apps/rhbk/Dockerfile), o [BuildConfig](deploy/build/rhbk-buildconfig.json) e os [recursos OLM](deploy/operator/resources.json) são os artefatos principais. O [guia da imagem otimizada](docs/imagem-rhbk.md) explica as opções de build e o uso em outro OpenShift. Para migrar a instalação manual existente, siga a seção de migração em [operação](docs/operacao.md); ela usa `--migrate-manual` e não repete o bootstrap.
+O contrato da demonstração continua sendo **uma aplicação M2M e um client por namespace**. O namespace da demonstração pode ser diferente do namespace RHBK. Adaptar a distribuição a uma aplicação existente exige que ela carregue a nova credencial no rollout; esta base não altera Deployments arbitrários.
+
+O procedimento comum passou por 294 testes locais e validação de 12 recursos por `dry-run` na API do CRC, sem alterar o laboratório. Sua instalação integral em um cluster novo permanece **não executada**; os resultados históricos registrados correspondem ao CRC já instalado, não a uma homologação de todos os ambientes OpenShift.
 
 ## Usar a demonstração já instalada no CRC
 
@@ -78,7 +70,8 @@ make collect
 - [Arquitetura e limites de portabilidade](docs/arquitetura.md).
 - [Perfil longo](realm/profile.json): principal de 3650 dias, convivência de 120 s e janela de antecipação dinâmica igual a zero.
 - [Perfil curto](realm/profile-short.json): ensaios de expiração principal, separados da apresentação.
-- [Configuração OpenShift](config/openshift.example.json): exemplo sem credenciais; preencha os valores do ambiente.
+- [Parâmetros de instalação RHBK](config/rhbk-install.openshift.env) e [exemplo CRC](config/rhbk-install.crc.env): mesmo procedimento, valores diferentes.
+- [Configuração da demonstração](config/openshift.example.json): URL/CA, realm, client e imagens, sem credenciais em texto.
 - [Versões do exemplo CRC](versions.lock.yaml): verificadas em 09/11/2026, não são a seleção automática da versão mais recente.
 
 ```sh

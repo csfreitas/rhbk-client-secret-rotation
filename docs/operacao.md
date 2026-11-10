@@ -1,119 +1,31 @@
-# Instalação e operação do exemplo CRC
+# Operação e manutenção do laboratório CRC existente
 
-Este laboratório demonstra a rotação de um client secret com decisão externa ao Red Hat build of Keycloak (RHBK), distribuição por Secrets Kubernetes imutáveis e rollout explícito de uma aplicação M2M. Use um CRC local reservado para estudos. O recurso `client-secret-rotation` é Technology Preview; uma instância RHBK neste ambiente não demonstra alta disponibilidade nem prontidão para produção.
+Este guia preserva os comandos do laboratório CRC já instalado e seus ensaios. **Para instalar RHBK em um ambiente novo, inclusive CRC, use a [instalação comum OpenShift](imagem-rhbk.md).** A configuração CRC é apenas um arquivo de parâmetros desse procedimento. Para adicionar aplicação e automação a uma instalação nova, continue pelo [guia da demonstração](openshift.md).
 
-Para um OpenShift com RHBK existente, use o [guia portátil](openshift.md). Para apresentar o laboratório já instalado, use o [roteiro de apresentação](apresentacao.md). Este instalador CRC continua deliberadamente restrito à infraestrutura local de referência.
+Os comandos abaixo dependem das identidades e arquivos privados do checkout que criou o laboratório anterior. Não use esses scripts para adotar recursos de outro checkout ou reproduzir a infraestrutura em outro cluster. A migração documentada aqui é um procedimento de manutenção, separado da instalação nova.
 
-Os comandos são executados na raiz do clone. As saídas geradas em `evidence/` descrevem somente a execução local. Este guia não inclui credenciais, identidades de cluster ou resultados de outro ambiente.
+Build otimizado, migração OLM, deploy, baseline e rotação foram verificados nesse CRC em 10/11/2026. A substituição da única réplica RHBK causou 24 falhas de autenticação, seguidas de recuperação do baseline; veja [resultados](resultados.md). O recurso `client-secret-rotation` é Technology Preview no RHBK 26.6.
 
-O fluxo abaixo usa imagem RHBK otimizada e Operator gerenciado pelo OLM. **Build, migração OLM, deploy otimizado, baseline e uma rotação posterior foram verificados no CRC existente em 10/11/2026**. A troca da única réplica RHBK causou 24 falhas de autenticação, seguidas de recuperação do baseline. A instalação integral em um segundo CRC vazio continua `NOT_RUN`; os ensaios anteriores e a verificação posterior à migração são separados em [resultados](resultados.md).
+## Acesso e estado do laboratório
 
-## 1. Requisitos e versão
-
-- Git, Make, Python 3.12 ou superior, `crc`, `oc` e Podman funcionando para o login interativo no registry e a extração do bundle oficial. Quando disponível, Skopeo é usado para extrair o bundle sem criar um container. As aplicações usam somente a biblioteca padrão do Python; não é necessário instalar pacotes com `pip`.
-- CRC com o preset OpenShift e nó `arm64`. O instalador e os digests deste exemplo estão fixados para essa arquitetura e recusam outro tipo de nó. O núcleo portátil recebe imagens compatíveis com o ambiente por configuração.
-- Acesso de administrador ao CRC, DNS `*.apps-crc.testing` funcional e armazenamento `crc-csi-hostpath-provisioner` disponível.
-- OLM e catálogo `redhat-operators` disponíveis, com o pacote `rhbk-operator`, canal `stable-v26.6` e CSV fixado `rhbk-operator.v26.6.9-opr.1`. Se o catálogo resolver outra versão, o preparador bloqueia; não aprove um plano diferente sem rever os pins.
-- Conta e autenticação autorizadas para obter as imagens oficiais em `registry.redhat.io`, além do pull secret exigido pelo CRC. O mirror local cobre RHBK, a base Python e PostgreSQL. O OLM obtém o bundle e a imagem oficial do Operator pelo catálogo; o cluster precisa ter acesso autenticado ao registry Red Hat.
-- Capacidade para RHBK, PostgreSQL, builds, duas réplicas da aplicação e um pod extra durante o rollout. Um perfil de referência é 6 CPUs e 18 GiB para a VM; não é um mínimo garantido. Verifique capacidade livre no host e preserve outros workloads.
-
-Instale e prepare o CRC conforme a [documentação oficial](https://crc.dev/docs/installing/). Em um ambiente novo, o fluxo oficial começa com `crc setup`, `crc start` e configuração do `oc` via `crc oc-env`; o [guia inicial do CRC](https://crc.dev/docs/getting-started/) descreve a autenticação. O pull secret solicitado por `crc start` é um arquivo privado.
-
-Esta edição do código fixa RHBK **26.6.9** e valida a versão efetiva no bootstrap. Consulte `versions.lock.yaml` e os digests dos manifests. Não substitua a imagem por `latest`: atualizar a versão exige rever o lock, as imagens, a validação do bootstrap e executar novamente os ensaios. “Última versão” é uma verificação pontual, não uma propriedade permanente do repositório.
-
-## 2. Clonar e preparar os arquivos privados
-
-Clone a distribuição pública:
-
-```sh
-git clone https://github.com/csfreitas/rhbk-client-secret-rotation.git rhbk-client-secret-rotation
-cd rhbk-client-secret-rotation
-umask 077
-mkdir -p .private
-chmod 700 .private
-make test
-```
-
-Os testes unitários não acessam o cluster e não substituem os ensaios com RHBK. O clone deve iniciar sem evidências ou credenciais de outra instalação. O preparador recusa um namespace preexistente sem a identidade registrada por este checkout; não o use para adotar ou reinstalar por cima de outro laboratório.
-
-Se o kubeconfig do `oc` já possui um contexto **administrativo local** chamado `crc-admin`, exporte somente esse contexto com o preparador. Ajuste o caminho de origem e o nome do contexto se sua instalação do CRC usar outros valores:
+Na raiz do checkout existente, se precisar preparar novamente o acesso local, selecione explicitamente o contexto administrativo CRC:
 
 ```sh
 python3 scripts/setup.py configure \
   --kubeconfig "$HOME/.kube/config" --context crc-admin
 oc --kubeconfig=.private/crc.kubeconfig config view --minify \
-  -o jsonpath='{.clusters[0].cluster.server}'
-```
-
-A última linha deve mostrar somente `https://api.crc.testing:6443`. O preparador valida essa API e grava `.private/crc.kubeconfig` com modo `0600`. Se o contexto não existir, conclua primeiro a autenticação administrativa descrita pelo CRC e repita a seleção do contexto correto. Não copie o kubeconfig inteiro de outros ambientes e não desabilite a verificação TLS.
-
-Prepare a autenticação do registry em arquivo, usando o prompt do Podman. A variável contém somente o caminho, não uma senha:
-
-```sh
-export REGISTRY_AUTH_FILE="$PWD/.private/registry-auth.json"
-podman login --authfile "$REGISTRY_AUTH_FILE" registry.redhat.io
-chmod 600 "$REGISTRY_AUTH_FILE"
-```
-
-Se usar apenas Skopeo no host, substitua `podman login` por `skopeo login` com os mesmos argumentos. Não use senha em argumento, em `export` ou em histórico de comandos. Em outro terminal, repita somente o `export` do caminho. O pull secret do CRC e este arquivo do host atendem consumidores diferentes; configurar um não garante a autenticação do outro.
-
-| Arquivo privado | Como é obtido |
-|---|---|
-| `.private/crc.kubeconfig` | `setup.py configure`, com arquivo de origem e contexto administrativo local explícitos |
-| `.private/registry-auth.json` | `podman login --authfile`, sem senha no comando |
-| `.private/route-ca.crt` | Preparação/implantação lê apenas a CA pública do ingress do CRC |
-| `.private/rotation-admin.secret` | Bootstrap obtém a credencial da identidade própria do laboratório e grava com modo `0600` |
-| `.private/runtime.json` | Bootstrap grava URLs e caminhos privados para os ensaios; não deve ser editado com credenciais em linha |
-
-Não é necessário obter ou copiar manualmente o valor de `catalogo-api`. A inicialização e o controlador usam Secrets Kubernetes. A identidade administrativa periódica é diferente do superadministrador usado na preparação do realm.
-
-## 3. Instalar antes de iniciar o relógio da aplicação
-
-```sh
+  -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
 make preflight
-make setup
-make mirror
-make build-rhbk
-make operator-prepare
+make status
 ```
 
-`preflight` verifica a API local e a arquitetura, e registra a identidade deste CRC. `setup` cria o namespace exclusivo, extrai e inspeciona o bundle oficial, habilita a Route padrão do registry local quando necessário e grava a CA pública do ingress. **Não instala CRDs nem Operator**. Essas preparações são específicas do CRC de estudos.
+A API precisa ser `https://api.crc.testing:6443`. O preparador exporta somente esse contexto para `.private/crc.kubeconfig`; não altera recursos. Preserve `evidence/` e `.private/` do checkout, inclusive identidades, CA e credencial administrativa da automação. Não publique esses diretórios.
 
-O mirror mantém os digests oficiais; TLS continua validado. `build-rhbk` executa o [Dockerfile](../apps/rhbk/Dockerfile) pelo [BuildConfig](../deploy/build/rhbk-buildconfig.json), com a feature, PostgreSQL, health e métricas preparados em build. Registra a imagem concluída por digest; não aplica o CR. Para retomar apenas a observação de um Build já iniciado, use `python3 scripts/rhbk_image.py wait --build rhbk-optimized-N`, com o nome real. Veja [imagem otimizada](imagem-rhbk.md).
+Para apenas observar ou apresentar, use `make watch`, `make baseline` e o [roteiro de apresentação](apresentacao.md). Não repita setup, deploy ou bootstrap para iniciar uma apresentação.
 
-`operator-prepare` cria um OperatorGroup restrito ao namespace e uma Subscription com aprovação **Manual**. Consulte o nome do plano e revise seu conteúdo, substituindo `install-NOME_REAL` pelo nome retornado:
+## Manutenção da imagem e do Operator
 
-```sh
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  get subscription rhbk-operator -o jsonpath='{.status.installPlanRef.name}{"\n"}'
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  get installplan install-NOME_REAL -o yaml
-make operator-approve PLAN=install-NOME_REAL
-make operator-status
-```
-
-O plano deve corresponder ao CSV fixado e às duas CRDs Keycloak esperadas. O helper confere a origem, a imagem, o escopo e as CRDs compartilhadas; recusa alteração de sua especificação e sobreposição com outro Operator. Não concede aprovação automática a planos futuros. Aguarde OLM concluir e repita `make operator-status` até confirmar CSV `Succeeded` e Operator pronto; a console então apresenta a instalação em **Operators → Installed Operators** no namespace selecionado.
-
-```sh
-make deploy
-make build
-```
-
-`deploy` exige o Operator OLM pronto e a referência local comprovada do build. Cria o banco em uma instalação nova e preserva um PostgreSQL existente validado. Implanta RHBK com `spec.image` por digest e `startOptimized: true`, aguardando o pod pronto com a nova imagem. `build` constrói as duas aplicações Python e fixa seus digests nos manifests locais. Não inicialize workloads com o marcador `build-required`.
-
-Antes do bootstrap, confira a infraestrutura:
-
-```sh
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab get pods,builds
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  rollout status deployment/rhbk-operator --timeout=180s
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  rollout status deployment/postgresql --timeout=180s
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  rollout status statefulset/rhbk --timeout=300s
-```
-
-Prossiga somente com os Builds `Complete` e workloads prontos. `Pending`, `ImagePullBackOff`, falha de TLS ou pressão de memória são bloqueios reais. Resolva a causa antes de iniciar os prazos; repetir bootstrap não corrige um pull de imagem.
+Os helpers CRC continuam fixados ao namespace, arquitetura ARM64 e versões do laboratório anterior. `make build-rhbk` constrói a imagem otimizada usando o mirror já verificado; `make deploy` exige o Operator OLM pronto e valida o banco existente antes de preservá-lo. A substituição da única réplica pode interromper autenticações. Suspenda a rotação, conclua Jobs ativos e guarde a coleta antes de qualquer troca.
 
 ### Migrar uma instalação existente com Operator manual
 
@@ -130,7 +42,16 @@ make operator-prepare
 
 O build reutiliza o espelho oficial já existente por digest, sem exigir a tag `pinned`. Se a imagem não estiver disponível, pare e prepare o acesso ao registry; não adote ImageStreams de outro projeto. Não é necessário repetir `setup` ou criar novas credenciais nessa migração.
 
-Revise o InstallPlan como acima. A aprovação da migração exige o parâmetro explícito:
+Consulte o plano apontado pela Subscription e revise o CSV, origem, recursos e CRDs compartilhadas antes de aprovar:
+
+```sh
+oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
+  get subscription rhbk-operator -o jsonpath='{.status.installPlanRef.name}{"\n"}'
+oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
+  get installplan install-NOME_REAL -o yaml
+```
+
+A aprovação da migração exige o parâmetro explícito:
 
 ```sh
 python3 scripts/operator_olm.py approve --plan install-NOME_REAL --migrate-manual
@@ -144,20 +65,18 @@ O helper registra a configuração anterior, para o Operator manual e aguarda se
 
 ### Opcional antes da demonstração: teste completo de expiração
 
-Este é o melhor momento para o ensaio longo: a aplicação principal ainda não foi inicializada. Prepare somente realm, política e administrador, depois instale RBAC e o CronJob suspenso:
+Este ensaio altera o perfil do realm do laboratório. Execute somente em uma janela reservada para testes; não o execute durante uma apresentação. Suspenda a automação e confirme que todos os Jobs terminaram antes de mudar o perfil:
 
 ```sh
+make automation-stop
+make status
+oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab get jobs
 python3 scripts/bootstrap.py --realm-only --profile short
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  apply --server-side --field-manager=rhbk-rotation-lab -f deploy/rbac/
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  apply --server-side --field-manager=rhbk-rotation-lab \
-  -f deploy/workloads/rotation-controller.json
 make test-post-expiration
 python3 scripts/bootstrap.py --realm-only --profile long-lived
 ```
 
-Esse bloco é para a primeira instalação. Não reaplique o CronJob inicial sobre uma execução existente. O ensaio exige agendamento suspenso e nenhum Job ativo, cria clients descartáveis no realm do laboratório e compara:
+O ensaio usa RBAC e controlador já instalados; não reaplique os manifests iniciais sobre uma geração em execução. Com agendamento suspenso e nenhum Job ativo, ele cria clients descartáveis no realm do laboratório e compara:
 
 - POST antecipado, próximo do vencimento e após o vencimento;
 - metadados de S1 e S2 antes/depois do POST;
@@ -166,18 +85,18 @@ Esse bloco é para a primeira instalação. Não reaplique o CronJob inicial sob
 
 Reserve dezenas de minutos e mantenha o host e o CRC acordados. Leia `evidence/post-expiration/summary.json` e `report.md`; os eventos JSONL preservam as medições. O ensaio exige o perfil curto e recusa o perfil de 3650 dias antes de criar clients. Um POST com HTTP 200 ou um valor diferente de secret não prova renovação do prazo. `FAIL` e `BLOCKED` não são aprovação, e erro de rede/TLS não prova expiração.
 
-### Iniciar a aplicação
+### Voltar à apresentação
+
+Depois de restaurar o perfil longo, confirme o estado e a aplicação antes de retomar a automação:
 
 ```sh
-make bootstrap
-oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
-  rollout status deployment/m2m-probe --timeout=90s
+make status
 make baseline
 ```
 
-Agora começa o TTL do client principal, de 3650 dias no perfil padrão. O baseline deve confirmar duas réplicas da mesma geração, com novas autenticações bem-sucedidas. Alterar um perfil não recalcula o vencimento de uma geração já emitida; esse prazo será conferido após o próximo POST.
+O baseline deve confirmar duas réplicas da mesma geração, com novas autenticações bem-sucedidas. Alterar um perfil não recalcula o vencimento de uma geração já emitida. Se a aplicação precisar de recuperação, use a seção de recuperação abaixo; não use bootstrap para reinicializar o laboratório.
 
-## 4. Configuração que será demonstrada
+## Configuração que será demonstrada
 
 | Parâmetro | Padrão e fonte |
 |---|---|
@@ -196,7 +115,7 @@ Os prazos de validade, convivência e decisão externa são independentes. O per
 
 O intervalo externo não é um temporizador exato: a avaliação pode ocorrer antes de completar 300 s desde o POST anterior e aguardar o próximo minuto. O perfil longo evita uma expiração precoce quando a automação atrasa, até o limite real da credencial. Não significa validade infinita.
 
-## 5. Demonstração curta: uma rotação
+## Demonstração curta: uma rotação
 
 Em um terminal:
 
@@ -233,7 +152,7 @@ oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
 
 Abra <http://127.0.0.1:8080/>. Esse painel mostra um pod escolhido pelo Service; não agrega as réplicas. O port-forward pode terminar quando esse pod for substituído; reabra-o. Use `make watch` para comparar todos os pods e separar a aplicação das sondas antigas.
 
-## 6. Demonstração automática: três ciclos reais
+## Demonstração automática: três ciclos reais
 
 Com estado terminal, nenhuma execução ativa e aplicação saudável:
 
@@ -250,7 +169,7 @@ O caminho do resumo é impresso e fica em `evidence/periodic/`. Ele separa falha
 
 Para manter a automação fora desse teste, use `make automation-start`, acompanhe com `make watch` e finalize com `make automation-stop`. Não misture esse modo interativo com uma execução T06 em andamento.
 
-## 7. Parar, retomar e recuperar
+## Parar, retomar e recuperar
 
 ```sh
 make automation-stop
@@ -271,7 +190,7 @@ A recuperação explícita registra a indisponibilidade anterior, gera uma nova 
 
 `crc stop` interrompe a VM inteira. Antes, suspenda e conclua os Jobs. Após `crc start`, execute `make preflight` e `make status`; o tempo transcorrido pode ter vencido a credencial. Não use `make bootstrap` como reinicializador de geração: sua reexecução preserva a geração existente.
 
-## 8. Ensaios adicionais e interpretação
+## Ensaios adicionais e interpretação
 
 Execute um cenário por vez, com baseline saudável e agendamento suspenso. Os ensaios operacionais deixam o CronJob suspenso:
 
@@ -290,7 +209,7 @@ T07 e T16 provocam falhas deliberadas no laboratório. Seus erros esperados não
 
 O contrato de saída distingue `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN` e `NOT_APPLICABLE`. Leia a razão e os eventos; a existência de um arquivo ou o sucesso de um teste unitário não prova execução integrada. A rejeição de credencial só é aceita com controle temporal, sucesso prévio e controle positivo da credencial nova.
 
-## 9. Limpeza e limites de acesso
+## Limpeza e limites de acesso
 
 Suspenda a automação, aguarde Jobs e preserve as coletas locais necessárias. Para revisar e depois remover os recursos exclusivos do laboratório:
 
@@ -303,4 +222,4 @@ A limpeza valida a identidade registrada e o ownership; remove o namespace `rhbk
 
 O controlador acessa credenciais do namespace e pode criar pods; o namespace inteiro é a fronteira de confiança. Não coloque recursos de outros projetos ali. A sonda M2M não recebe token Kubernetes. Os relatórios filtram campos sensíveis, mas os arquivos privados, kubeconfig, pull secrets e dumps administrativos nunca devem ser publicados.
 
-Para iniciar outra instalação após remover o laboratório, use um clone novo e seu próprio kubeconfig. Não reutilize a identidade registrada de um CRC que foi recriado.
+Para iniciar outra instalação após remover o laboratório, use um clone novo, seu próprio kubeconfig e a [instalação comum OpenShift](imagem-rhbk.md). Não reutilize a identidade registrada de um CRC que foi recriado.

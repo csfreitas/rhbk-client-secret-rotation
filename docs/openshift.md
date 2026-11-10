@@ -4,7 +4,7 @@ Este caminho instala a aplicação de demonstração e o controlador externo em 
 
 A adaptação foi verificada por testes unitários com APIs simuladas. A instalação em outro OpenShift ainda não foi executada. Os resultados do CRC em [resultados.md](resultados.md) não constituem execução deste caminho.
 
-Para provisionar o servidor antes desta integração, consulte [imagem RHBK otimizada e Operator via OLM](imagem-rhbk.md). Esse é um procedimento separado: o importador abaixo continua usando um RHBK existente e não executa builds do servidor. Os comandos `make setup`, `make mirror`, `make build-rhbk`, `make operator-prepare`, `make operator-approve` e `make deploy` pertencem ao exemplo CRC; não os aponte para este cluster.
+Se precisar instalar o servidor, siga primeiro a [instalação comum RHBK no OpenShift](imagem-rhbk.md), válida também para CRC. Depois volte a este guia. O servidor e a demonstração têm ciclos de instalação separados: este importador usa o RHBK pronto e cria um **outro namespace**, exclusivo da aplicação e do controlador. Não reutilize aqui o namespace onde o servidor foi instalado. Os comandos antigos `make setup`, `make mirror`, `make build-rhbk`, `make operator-prepare`, `make operator-approve` e `make deploy` são de manutenção do laboratório CRC anterior e não fazem parte desses dois procedimentos.
 
 ## Contrato e pré-requisitos
 

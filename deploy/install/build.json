@@ -1,0 +1,160 @@
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "rhbk-build"
+  },
+  "message": "Upload only apps/rhbk as the Binary build context. Record the completed Build digest before rendering Keycloak.",
+  "parameters": [
+    {
+      "name": "NAMESPACE",
+      "description": "Dedicated namespace selected for this installation.",
+      "required": true
+    },
+    {
+      "name": "BUILD_NAME",
+      "description": "Name of the BuildConfig and output ImageStream.",
+      "required": true
+    },
+    {
+      "name": "RHBK_BASE_IMAGE",
+      "description": "RHBK base image or authorized mirror pinned by sha256 digest.",
+      "required": true
+    },
+    {
+      "name": "ARCHITECTURE",
+      "description": "Compatible node architecture: amd64 or arm64.",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": {
+        "name": "${BUILD_NAME}-builder",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "${BUILD_NAME}-builder",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "roleRef": {
+        "apiGroup": "rbac.authorization.k8s.io",
+        "kind": "ClusterRole",
+        "name": "system:image-builder"
+      },
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "${BUILD_NAME}-builder",
+          "namespace": "${NAMESPACE}"
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "${BUILD_NAME}-pullers",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "roleRef": {
+        "apiGroup": "rbac.authorization.k8s.io",
+        "kind": "ClusterRole",
+        "name": "system:image-puller"
+      },
+      "subjects": [
+        {
+          "kind": "Group",
+          "name": "system:serviceaccounts:${NAMESPACE}",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ]
+    },
+    {
+      "apiVersion": "image.openshift.io/v1",
+      "kind": "ImageStream",
+      "metadata": {
+        "name": "${BUILD_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      }
+    },
+    {
+      "apiVersion": "build.openshift.io/v1",
+      "kind": "BuildConfig",
+      "metadata": {
+        "name": "${BUILD_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "runPolicy": "Serial",
+        "serviceAccount": "${BUILD_NAME}-builder",
+        "triggers": [],
+        "successfulBuildsHistoryLimit": 3,
+        "failedBuildsHistoryLimit": 3,
+        "completionDeadlineSeconds": 900,
+        "nodeSelector": {
+          "kubernetes.io/arch": "${ARCHITECTURE}"
+        },
+        "source": {
+          "type": "Binary",
+          "binary": {}
+        },
+        "strategy": {
+          "type": "Docker",
+          "dockerStrategy": {
+            "dockerfilePath": "Dockerfile",
+            "noCache": true,
+            "buildArgs": [
+              {
+                "name": "RHBK_IMAGE",
+                "value": "${RHBK_BASE_IMAGE}"
+              }
+            ]
+          }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "${BUILD_NAME}:lab"
+          }
+        },
+        "resources": {
+          "requests": {
+            "cpu": "250m",
+            "memory": "512Mi"
+          },
+          "limits": {
+            "cpu": "2",
+            "memory": "2Gi"
+          }
+        }
+      }
+    }
+  ]
+}

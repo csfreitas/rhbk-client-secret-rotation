@@ -1,0 +1,79 @@
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "rhbk-operator"
+  },
+  "message": "Review the Manual InstallPlan before approving it. CRDs are cluster-scoped.",
+  "parameters": [
+    {
+      "name": "NAMESPACE",
+      "description": "Dedicated namespace selected for this installation.",
+      "required": true
+    },
+    {
+      "name": "OPERATOR_GROUP",
+      "description": "Name of the namespace-scoped OperatorGroup.",
+      "required": true
+    },
+    {
+      "name": "OPERATOR_CHANNEL",
+      "description": "RHBK Operator channel compatible with the server image.",
+      "required": true
+    },
+    {
+      "name": "OPERATOR_CSV",
+      "description": "Exact initial CSV reviewed for this installation.",
+      "required": true
+    },
+    {
+      "name": "OPERATOR_CATALOG",
+      "description": "CatalogSource supplying the RHBK Operator.",
+      "required": true
+    },
+    {
+      "name": "OPERATOR_CATALOG_NAMESPACE",
+      "description": "Namespace of the selected CatalogSource.",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "apiVersion": "operators.coreos.com/v1",
+      "kind": "OperatorGroup",
+      "metadata": {
+        "name": "${OPERATOR_GROUP}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "targetNamespaces": [
+          "${NAMESPACE}"
+        ]
+      }
+    },
+    {
+      "apiVersion": "operators.coreos.com/v1alpha1",
+      "kind": "Subscription",
+      "metadata": {
+        "name": "rhbk-operator",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "name": "rhbk-operator",
+        "channel": "${OPERATOR_CHANNEL}",
+        "source": "${OPERATOR_CATALOG}",
+        "sourceNamespace": "${OPERATOR_CATALOG_NAMESPACE}",
+        "installPlanApproval": "Manual",
+        "startingCSV": "${OPERATOR_CSV}"
+      }
+    }
+  ]
+}

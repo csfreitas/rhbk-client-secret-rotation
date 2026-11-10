@@ -1,0 +1,207 @@
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "rhbk-keycloak"
+  },
+  "message": "This example uses TLS termination at the OpenShift router (edge) and HTTP inside the cluster. Supply existing database and bootstrap Secrets.",
+  "parameters": [
+    {
+      "name": "NAMESPACE",
+      "description": "Dedicated namespace selected for this installation.",
+      "required": true
+    },
+    {
+      "name": "RHBK_NAME",
+      "description": "Name of the Keycloak CR and Route.",
+      "required": true
+    },
+    {
+      "name": "RHBK_IMAGE",
+      "description": "Optimized image pinned to the exact completed Build digest.",
+      "required": true
+    },
+    {
+      "name": "RHBK_HOSTNAME",
+      "description": "Public DNS hostname without scheme or path, covered by the router certificate.",
+      "required": true
+    },
+    {
+      "name": "ARCHITECTURE",
+      "description": "Compatible node architecture: amd64 or arm64.",
+      "required": true
+    },
+    {
+      "name": "RHBK_INSTANCES",
+      "description": "Positive integer number of server instances.",
+      "required": true
+    },
+    {
+      "name": "RHBK_CPU_REQUEST",
+      "description": "CPU request per RHBK pod.",
+      "required": true
+    },
+    {
+      "name": "RHBK_MEMORY_REQUEST",
+      "description": "Memory request per RHBK pod.",
+      "required": true
+    },
+    {
+      "name": "RHBK_CPU_LIMIT",
+      "description": "CPU limit per RHBK pod.",
+      "required": true
+    },
+    {
+      "name": "RHBK_MEMORY_LIMIT",
+      "description": "Memory limit per RHBK pod.",
+      "required": true
+    },
+    {
+      "name": "DB_HOST",
+      "description": "PostgreSQL hostname reachable from the namespace.",
+      "required": true
+    },
+    {
+      "name": "DB_PORT",
+      "description": "PostgreSQL TCP port.",
+      "required": true
+    },
+    {
+      "name": "DB_NAME",
+      "description": "Existing PostgreSQL database name.",
+      "required": true
+    },
+    {
+      "name": "DB_USERNAME_SECRET",
+      "description": "Existing Secret containing the database username.",
+      "required": true
+    },
+    {
+      "name": "DB_USERNAME_KEY",
+      "description": "Key containing the database username.",
+      "required": true
+    },
+    {
+      "name": "DB_PASSWORD_SECRET",
+      "description": "Existing Secret containing the database password.",
+      "required": true
+    },
+    {
+      "name": "DB_PASSWORD_KEY",
+      "description": "Key containing the database password.",
+      "required": true
+    },
+    {
+      "name": "BOOTSTRAP_SECRET",
+      "description": "Existing Secret with username and password for initial administration.",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "apiVersion": "k8s.keycloak.org/v2beta1",
+      "kind": "Keycloak",
+      "metadata": {
+        "name": "${RHBK_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "instances": "${{RHBK_INSTANCES}}",
+        "image": "${RHBK_IMAGE}",
+        "startOptimized": true,
+        "db": {
+          "vendor": "postgres",
+          "host": "${DB_HOST}",
+          "port": "${{DB_PORT}}",
+          "database": "${DB_NAME}",
+          "usernameSecret": {
+            "name": "${DB_USERNAME_SECRET}",
+            "key": "${DB_USERNAME_KEY}"
+          },
+          "passwordSecret": {
+            "name": "${DB_PASSWORD_SECRET}",
+            "key": "${DB_PASSWORD_KEY}"
+          }
+        },
+        "http": {
+          "httpEnabled": true
+        },
+        "hostname": {
+          "hostname": "https://${RHBK_HOSTNAME}"
+        },
+        "proxy": {
+          "headers": "xforwarded"
+        },
+        "ingress": {
+          "enabled": false
+        },
+        "bootstrapAdmin": {
+          "user": {
+            "secret": "${BOOTSTRAP_SECRET}"
+          }
+        },
+        "resources": {
+          "requests": {
+            "cpu": "${RHBK_CPU_REQUEST}",
+            "memory": "${RHBK_MEMORY_REQUEST}"
+          },
+          "limits": {
+            "cpu": "${RHBK_CPU_LIMIT}",
+            "memory": "${RHBK_MEMORY_LIMIT}"
+          }
+        },
+        "scheduling": {
+          "affinity": {
+            "nodeAffinity": {
+              "requiredDuringSchedulingIgnoredDuringExecution": {
+                "nodeSelectorTerms": [
+                  {
+                    "matchExpressions": [
+                      {
+                        "key": "kubernetes.io/arch",
+                        "operator": "In",
+                        "values": [
+                          "${ARCHITECTURE}"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "route.openshift.io/v1",
+      "kind": "Route",
+      "metadata": {
+        "name": "${RHBK_NAME}",
+        "namespace": "${NAMESPACE}",
+        "labels": {
+          "app.kubernetes.io/part-of": "rhbk-secret-rotation-lab",
+          "app.kubernetes.io/managed-by": "rhbk-install-templates"
+        }
+      },
+      "spec": {
+        "host": "${RHBK_HOSTNAME}",
+        "to": {
+          "kind": "Service",
+          "name": "${RHBK_NAME}-service"
+        },
+        "port": {
+          "targetPort": "http"
+        },
+        "tls": {
+          "termination": "edge",
+          "insecureEdgeTerminationPolicy": "Redirect"
+        }
+      }
+    }
+  ]
+}
