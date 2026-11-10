@@ -1,0 +1,38 @@
+{
+  "kubeconfig": "/absolute/path/operator.kubeconfig",
+  "context": "explicit-openshift-context",
+  "expected_server": "https://api.cluster.example.com:6443",
+  "namespace": "rhbk-rotation-demo",
+  "architecture": "amd64",
+  "rhbk_url": "https://sso.example.com",
+  "realm": "rotation-demo",
+  "client_id": "rotation-demo-m2m",
+  "admin_client_id": "rotation-admin",
+  "expected_server_version": "26.6.9.redhat-00002",
+  "ca_file": "/absolute/path/rhbk-ca.crt",
+  "admin_secret_file": "/absolute/path/rotation-admin.secret",
+  "initial_secret_file": "/absolute/path/rotation-demo-m2m.secret",
+  "images": {
+    "probe": "registry.example.com/team/m2m-probe@sha256:REPLACE_WITH_REAL_DIGEST",
+    "controller": "registry.example.com/team/rotation-controller@sha256:REPLACE_WITH_REAL_DIGEST"
+  },
+  "image_pull_secrets": [],
+  "secret_prefix": "m2m-credential",
+  "cronjob_name": "rotation-controller",
+  "state_name": "rotation-state",
+  "deployment_name": "m2m-probe",
+  "lease_name": "rotation-client",
+  "profile_name": "external-rotation-profile",
+  "policy_name": "external-rotation-policy",
+  "policy_role": "external-rotation-managed",
+  "rotation": {
+    "principal_ttl": 315360000,
+    "rotated_ttl": 120,
+    "remaining_window": 0,
+    "interval": 300,
+    "hold": 45,
+    "rollout": 60,
+    "margin": 15,
+    "epsilon": 5
+  }
+}

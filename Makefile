@@ -1,5 +1,6 @@
 PYTHON ?= python3
 .PHONY: preflight setup mirror deploy build bootstrap baseline watch collect status rotate-once reconcile automation-start automation-stop recover-expired test test-periodic test-post-expiration test-put-comparison test-delayed-rollout test-recovery scan cleanup
+.PHONY: watch-json history openshift-watch openshift-collect openshift-baseline openshift-status openshift-history openshift-start openshift-stop openshift-rotate-once openshift-reconcile
 preflight:
 	$(PYTHON) scripts/lab.py preflight
 setup:
@@ -15,11 +16,15 @@ bootstrap:
 baseline:
 	$(PYTHON) scripts/observe.py baseline
 watch:
-	$(PYTHON) scripts/observe.py watch
+	$(PYTHON) scripts/observe.py watch --output auto
+watch-json:
+	$(PYTHON) scripts/observe.py watch --format json
 collect:
 	$(PYTHON) scripts/observe.py collect
 status:
-	$(PYTHON) scripts/control.py status
+	$(PYTHON) scripts/observe.py status
+history:
+	$(PYTHON) scripts/observe.py history
 rotate-once:
 	$(PYTHON) scripts/control.py rotate-once
 reconcile:
@@ -46,3 +51,23 @@ scan:
 	$(PYTHON) scripts/secret_scan.py
 cleanup:
 	$(PYTHON) scripts/cleanup.py
+
+# Portable operations use only the explicit configuration prepared by openshift.py.
+openshift-watch:
+	$(PYTHON) scripts/observe.py watch --environment openshift --output auto
+openshift-collect:
+	$(PYTHON) scripts/observe.py collect --environment openshift
+openshift-baseline:
+	$(PYTHON) scripts/observe.py baseline --environment openshift
+openshift-status:
+	$(PYTHON) scripts/observe.py status --environment openshift
+openshift-history:
+	$(PYTHON) scripts/observe.py history --environment openshift
+openshift-start:
+	$(PYTHON) scripts/control.py resume --environment openshift
+openshift-stop:
+	$(PYTHON) scripts/control.py suspend --environment openshift
+openshift-rotate-once:
+	$(PYTHON) scripts/control.py rotate-once --environment openshift
+openshift-reconcile:
+	$(PYTHON) scripts/control.py reconcile --environment openshift

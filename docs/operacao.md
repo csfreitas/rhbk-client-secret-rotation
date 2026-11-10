@@ -1,13 +1,15 @@
-# Guia do operador e do apresentador
+# Instalação e operação do exemplo CRC
 
 Este laboratório demonstra a rotação de um client secret com decisão externa ao Red Hat build of Keycloak (RHBK), distribuição por Secrets Kubernetes imutáveis e rollout explícito de uma aplicação M2M. Use um CRC local reservado para estudos. O recurso `client-secret-rotation` é Technology Preview; uma instância RHBK neste ambiente não demonstra alta disponibilidade nem prontidão para produção.
+
+Para um OpenShift com RHBK existente, use o [guia portátil](openshift.md). Para apresentar o laboratório já instalado, use o [roteiro de apresentação](apresentacao.md). Este instalador CRC continua deliberadamente restrito à infraestrutura local de referência.
 
 Os comandos são executados na raiz do clone. As saídas geradas em `evidence/` descrevem somente a execução local. Este guia não inclui credenciais, identidades de cluster ou resultados de outro ambiente.
 
 ## 1. Requisitos e versão
 
 - Git, Make, Python 3.12 ou superior, `crc`, `oc` e Podman funcionando para o login interativo no registry e a extração do bundle oficial. Quando disponível, Skopeo é usado para extrair o bundle sem criar um container. As aplicações usam somente a biblioteca padrão do Python; não é necessário instalar pacotes com `pip`.
-- CRC com o preset OpenShift e nó `arm64`. O código e os digests deste laboratório estão fixados para essa arquitetura e recusam outro tipo de nó. O suporte do CRC a outras arquiteturas não torna este pacote automaticamente compatível com elas.
+- CRC com o preset OpenShift e nó `arm64`. O instalador e os digests deste exemplo estão fixados para essa arquitetura e recusam outro tipo de nó. O núcleo portátil recebe imagens compatíveis com o ambiente por configuração.
 - Acesso de administrador ao CRC, DNS `*.apps-crc.testing` funcional e armazenamento `crc-csi-hostpath-provisioner` disponível.
 - Conta e autenticação autorizadas para obter as imagens oficiais em `registry.redhat.io`, além do pull secret exigido pelo CRC. O mirror local cobre RHBK, a base Python, PostgreSQL e Operator.
 - Capacidade para RHBK, PostgreSQL, builds, duas réplicas da aplicação e um pod extra durante o rollout. Um perfil de referência é 6 CPUs e 18 GiB para a VM; não é um mínimo garantido. Verifique capacidade livre no host e preserve outros workloads.
@@ -95,13 +97,14 @@ Prossiga somente com os Builds `Complete` e workloads prontos. `Pending`, `Image
 Este é o melhor momento para o ensaio longo: a aplicação principal ainda não foi inicializada. Prepare somente realm, política e administrador, depois instale RBAC e o CronJob suspenso:
 
 ```sh
-python3 scripts/bootstrap.py --realm-only
+python3 scripts/bootstrap.py --realm-only --profile short
 oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
   apply --server-side --field-manager=rhbk-rotation-lab -f deploy/rbac/
 oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
   apply --server-side --field-manager=rhbk-rotation-lab \
   -f deploy/workloads/rotation-controller.json
 make test-post-expiration
+python3 scripts/bootstrap.py --realm-only --profile long-lived
 ```
 
 Esse bloco é para a primeira instalação. Não reaplique o CronJob inicial sobre uma execução existente. O ensaio exige agendamento suspenso e nenhum Job ativo, cria clients descartáveis no realm do laboratório e compara:
@@ -111,7 +114,7 @@ Esse bloco é para a primeira instalação. Não reaplique o CronJob inicial sob
 - autenticações novas em ambos os lados dos vencimentos original, rotacionado e novo;
 - client de controle sem política de expiração.
 
-Reserve dezenas de minutos e mantenha o host e o CRC acordados. Leia `evidence/post-expiration/summary.json` e `report.md`; os eventos JSONL preservam as medições. Um POST com HTTP 200 ou um valor diferente de secret não prova renovação do prazo. `FAIL` e `BLOCKED` não são aprovação, e erro de rede/TLS não prova expiração.
+Reserve dezenas de minutos e mantenha o host e o CRC acordados. Leia `evidence/post-expiration/summary.json` e `report.md`; os eventos JSONL preservam as medições. O ensaio exige o perfil curto e recusa o perfil de 3650 dias antes de criar clients. Um POST com HTTP 200 ou um valor diferente de secret não prova renovação do prazo. `FAIL` e `BLOCKED` não são aprovação, e erro de rede/TLS não prova expiração.
 
 ### Iniciar a aplicação
 
@@ -122,7 +125,7 @@ oc --kubeconfig=.private/crc.kubeconfig -n rhbk-rotation-lab \
 make baseline
 ```
 
-Agora começa o TTL do client principal. O baseline deve confirmar duas réplicas da mesma geração, com novas autenticações bem-sucedidas. Inicie logo a demonstração ou os ciclos automáticos; a geração inicial expira mesmo que ninguém execute outra ação.
+Agora começa o TTL do client principal, de 3650 dias no perfil padrão. O baseline deve confirmar duas réplicas da mesma geração, com novas autenticações bem-sucedidas. Alterar um perfil não recalcula o vencimento de uma geração já emitida; esse prazo será conferido após o próximo POST.
 
 ## 4. Configuração que será demonstrada
 
@@ -130,14 +133,16 @@ Agora começa o TTL do client principal. O baseline deve confirmar duas réplica
 |---|---|
 | Realm / client da aplicação | `lab-secret-rotation` / `catalogo-api` |
 | Identidade administrativa periódica | `rotation-admin`, fora da política de expiração do alvo |
-| TTL principal / anterior / janela de atualização | 300 s / 120 s / 60 s em `realm/profile.json` |
+| TTL principal / anterior / janela de atualização | 315360000 s / 120 s / 0 em `realm/profile.json` |
 | Seleção da política | Papel marcador `lab-secret-rotation`, em `realm/policy.json` |
-| Frequência de avaliação | CronJob a cada minuto; intervalo mínimo de rotação de 180 s |
+| Frequência de avaliação | CronJob a cada minuto; intervalo mínimo de rotação de 300 s; aproximadamente 6 min medidos |
 | Espera / orçamento de rollout / margem | 45 s / 60 s / 15 s, no manifest do controlador |
 | Aplicação | Duas réplicas, grant novo a cada 2 s, secret lido uma vez ao iniciar |
 | Rollout | `maxUnavailable: 0`, `maxSurge: 1`; referência explícita ao Secret da nova geração |
 
-Mantenha esses valores para reproduzir os ensaios. Alterações de TTL exigem coerência entre política, controlador e parâmetros de teste. O controlador verifica a janela efetiva retornada pelo RHBK; a soma dos tempos configurados, sozinha, não garante que ainda existe tempo suficiente.
+Os prazos de validade, convivência e decisão externa são independentes. O perfil curto `realm/profile-short.json` (300/120/60) é reservado ao ensaio que aguarda o vencimento da principal. Alterações de TTL exigem coerência entre política, controlador e parâmetros de teste. O controlador verifica a janela efetiva retornada pelo RHBK; a soma dos tempos configurados, sozinha, não garante que ainda existe tempo suficiente.
+
+O intervalo externo não é um temporizador exato: a avaliação pode ocorrer antes de completar 300 s desde o POST anterior e aguardar o próximo minuto. O perfil longo evita uma expiração precoce quando a automação atrasa, até o limite real da credencial. Não significa validade infinita.
 
 ## 5. Demonstração curta: uma rotação
 
@@ -154,9 +159,10 @@ make status
 make rotate-once
 make baseline
 make collect
+make history
 ```
 
-O comando aguarda a conclusão, incluindo a rejeição comprovada da credencial antiga. Não dispare outra rotação enquanto ele trabalha. Use este roteiro de apresentação:
+O comando aguarda a conclusão, incluindo a rejeição comprovada da credencial antiga. Não dispare outra rotação enquanto ele trabalha. `make watch` mostra uma tabela e grava JSONL completo em um arquivo datado de `evidence/crc/`; `make watch-json` preserva a saída técnica. `make status` e `make history` são consultas, sem criação de Jobs. Use este roteiro de apresentação:
 
 | Momento | O que mostrar e explicar |
 |---|---|
@@ -184,7 +190,7 @@ make baseline
 make test-periodic
 ```
 
-O teste retoma o CronJob uma vez, observa a aplicação e aguarda ao menos três ciclos novos. Não execute comandos de rotação, recuperação ou alteração da política durante essa janela. O limite padrão é 960 segundos, incluindo a parada controlada.
+O teste retoma o CronJob uma vez, observa a aplicação e aguarda ao menos três ciclos novos. Não execute comandos de rotação, recuperação ou alteração da política durante essa janela. O limite padrão é 1800 segundos, incluindo a parada controlada; reserve até 30 minutos. A ampliação acomoda o intervalo externo de 300 s e os atrasos de agendamento. Essa alteração do orçamento foi validada localmente; uma nova execução T06 com o perfil longo ainda não foi realizada.
 
 Uma aprovação exige correlação entre cada geração, seu Job criado pelo CronJob, POST, conclusão, rejeição de S1 e autenticação de S2. Um Job que decidiu não rotacionar não conta como ciclo. Ao terminar, o teste suspende o agendamento, aguarda Jobs ativos e confirma a suspensão persistida.
 
@@ -217,6 +223,8 @@ A recuperação explícita registra a indisponibilidade anterior, gera uma nova 
 
 Execute um cenário por vez, com baseline saudável e agendamento suspenso. Os ensaios operacionais deixam o CronJob suspenso:
 
+O comparativo PUT, assim como o teste completo de expiração por POST, exige `bootstrap.py --realm-only --profile short` antes do ensaio e restauração por `--profile long-lived` ao terminar. Ambos conferem o perfil real e recusam prazos que ultrapassem o orçamento do ensaio. O perfil curto não é necessário para as rotações normais demonstradas no roteiro.
+
 | Comando | Objetivo |
 |---|---|
 | `make test-delayed-rollout` | Reter S1 além da convivência, observar falha esperada e recuperar S2 |
@@ -224,7 +232,7 @@ Execute um cenário por vez, com baseline saudável e agendamento suspenso. Os e
 | `make test-recovery` | Falha após o POST e reconciliação sem repetir a rotação |
 | `python3 tests/integration/operations.py T12` | Falha na escrita do Secret e no rollout |
 | `python3 tests/integration/operations.py T16` | Rollback dentro e fora da validade, seguido da restauração de S2 |
-| `make test-put-comparison` | Comparar atualização por PUT com o comportamento do POST |
+| `make test-put-comparison` | Com perfil curto, comparar atualização por PUT com o comportamento do POST |
 
 T07 e T16 provocam falhas deliberadas no laboratório. Seus erros esperados não devem ser somados à medição de continuidade de uma demonstração normal. Após ensaios longos, confirme se a geração ainda está válida antes do próximo comando.
 

@@ -55,7 +55,7 @@ class PeriodicSafety(unittest.TestCase):
   self.assertEqual(result,{'cycle_id':'unit-cycle','generation':2,'post_metadata':{'client.secret.expiration.time':1000}})
 
  def test_timeout_limit_is_checked_before_any_execution(self):
-  with patch.object(sys,'argv',['periodic.py','--timeout','1001']),patch.object(periodic,'execute') as run,contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
+  with patch.object(sys,'argv',['periodic.py','--timeout','3601']),patch.object(periodic,'execute') as run,contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
    periodic.main()
   run.assert_not_called()
 

@@ -57,4 +57,37 @@ class ObserveCleanupSafety(unittest.TestCase):
   with patch.object(lab,'get',return_value=obj):
    self.assertEqual(observe.safe_state(),{'phase':'IDLE','post_metadata':{'client.secret.expiration.time':1234}})
 
+ def test_table_does_not_mix_old_probe_failures_with_main(self):
+  main={'name':'app-pod','generation':'v0016','status_available':True,
+        'last_http':200,'successes':54,'failures':0,'latest_authentication_ok':True,
+        'last_attempt_utc':'2026-11-10T16:13:00Z'}
+  data={'state':{'phase':'COMPLETE','generation':16,'old_generation':15,'suspended':False},
+        'cronjob':{'suspended':False},'main_application':[main],
+        'old_secret_probes':[{'generation':'v0015','status_available':True,'last_http':401,'failures':999}]}
+  now=observe.dt.datetime.fromisoformat('2026-11-10T16:13:02+00:00').timestamp()
+  result=observe.table(data,now=now)
+  self.assertIn('13:13:02',result)
+  self.assertIn('ATIVA',result)
+  self.assertIn('HTTP 401 (separada da aplicacao)',result)
+  self.assertNotIn('999',result)
+  self.assertEqual(observe.authentication_status(main,now),'OK')
+
+ def test_missing_or_stale_status_is_never_shown_as_healthy(self):
+  now=observe.dt.datetime.fromisoformat('2026-11-10T16:13:30+00:00').timestamp()
+  self.assertEqual(observe.authentication_status({'ready':True},now),'SEM STATUS')
+  self.assertEqual(observe.authentication_status({'status_available':True,'last_http':200},now),'SEM AMOSTRA')
+  stale={'status_available':True,'last_http':200,'latest_authentication_ok':True,
+         'last_attempt_utc':'2026-11-10T16:13:00Z'}
+  self.assertEqual(observe.authentication_status(stale,now),'DESATUALIZADA')
+
+ def test_watch_saves_json_while_printing_a_table(self):
+  row={'timestamp_utc':'2026-11-10T16:13:00Z','state':{},'deployment':{},'cronjob':{},
+       'main_application':[],'old_secret_probes':[]}
+  with tempfile.TemporaryDirectory() as directory:
+   destination=Path(directory)/'watch.jsonl'
+   with patch.object(observe,'snapshot',return_value=row),patch.object(observe.time,'sleep',side_effect=KeyboardInterrupt),contextlib.redirect_stdout(io.StringIO()) as output,contextlib.redirect_stderr(io.StringIO()):
+    self.assertEqual(observe.watch(output=destination),0)
+   self.assertEqual(json.loads(destination.read_text()),row)
+   self.assertIn('Nenhum pod',output.getvalue())
+
 if __name__=='__main__':unittest.main()

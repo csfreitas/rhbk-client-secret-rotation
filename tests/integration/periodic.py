@@ -313,9 +313,9 @@ def execute(args):
 def main():
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument('--cycles',type=int,default=3)
- parser.add_argument('--timeout',type=int,default=960,help='Total observation/stop budget, at most 1000 seconds')
+ parser.add_argument('--timeout',type=int,default=1800,help='Total observation/stop budget, at most 3600 seconds')
  args=parser.parse_args()
  if args.cycles<3:parser.error('--cycles must be at least 3')
- if not 180<=args.timeout<=1000:parser.error('--timeout must be between 180 and 1000 seconds')
+ if not 180<=args.timeout<=3600:parser.error('--timeout must be between 180 and 3600 seconds')
  return execute(args)
 if __name__=='__main__':raise SystemExit(main())

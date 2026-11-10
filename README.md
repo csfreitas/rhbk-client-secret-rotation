@@ -1,69 +1,66 @@
-# RHBK client secret rotation — laboratório CRC
+# Rotação externa de client secrets no OpenShift
 
-Automação externa de rotação de credenciais M2M em **Red Hat build of Keycloak 26.6.9**, com Secrets imutáveis versionados e rollout explícito no OpenShift Local. O controlador decide quando rotacionar; o RHBK gera a credencial e aplica os prazos; a aplicação conserva sua geração até ser atualizada.
+Base de demonstração para **Red Hat build of Keycloak**, com aplicação M2M contínua, Secrets imutáveis versionados e rollout controlado. A automação externa decide quando trocar; o RHBK gera a nova credencial; o OpenShift distribui e atualiza os consumidores. O `client_id` permanece igual. Não há SPI.
 
-![Arquitetura do laboratório](docs/diagramas/arquitetura.png)
+![Arquitetura da solução](docs/diagramas/arquitetura.png)
 
-O núcleo da aplicação, controlador e testes integrados foi executado em CRC ARM64: três ciclos periódicos observaram pelo menos **770 novas autenticações, 770 sucessos e nenhuma falha** da aplicação principal. Consulte os [resultados e seus limites](docs/resultados.md), incluindo a revisão do teste de expiração e o comparativo PUT bloqueado.
+## O que foi validado
 
-**A instalação de um clone em CRC vazio foi preparada e validada por testes locais, mas ainda não foi executada integralmente em um segundo CRC.** Os comandos abaixo são o caminho de reprodução, não uma nova comprovação integrada. `client-secret-rotation` é Technology Preview; este laboratório de uma réplica RHBK não homologa produção ou alta disponibilidade.
+No CRC ARM64, com **RHBK 26.6.9.redhat-00002**, validamos dois perfis:
 
-## Instalação
+| Perfil | Principal | Anterior após POST | Decisão externa |
+|---|---:|---:|---|
+| Demonstração atual | 315360000 s — 3650 dias | 120 s | Intervalo mínimo de 300 s; avaliação a cada minuto |
+| Ensaios de expiração | 300 s | 120 s | Prazos curtos para observar vencimentos reais |
 
-Use um CRC com nó **Linux/ARM64**, com acesso administrativo dedicado, `oc`, Python 3.12 ou superior e `skopeo` ou Podman funcionando no host. O CRC deve estar iniciado, com registry interno gerenciado e APIs OLM disponíveis. É necessário um arquivo de autenticação autorizado para `registry.redhat.io`. As imagens oficiais ficam fixadas em [versions.lock.yaml](versions.lock.yaml); o pin corresponde à versão verificada em 09/11/2026, sem promessa de ser a última versão em consultas futuras.
+O POST reiniciou a validade da nova secret. A antiga, que antes venceria em 2036, passou a vencer 120 segundos após a troca. A aplicação autenticou com a nova credencial depois da rejeição da antiga. Nos dois ciclos acompanhados em 10/11/2026, o intervalo observado entre POSTs foi **359,705 s, aproximadamente 6 minutos**. Não é um agendamento de 5 minutos exatos. Veja os [resultados e limites](docs/resultados.md).
 
-No diretório do clone, substitua os caminhos e o nome do contexto:
+Os 3650 dias são um prazo finito de demonstração, não uma recomendação universal de segurança. A periodicidade externa pode ser muito menor; suspender a automação não renova nem elimina o vencimento da secret atual.
+
+## Escolha o ambiente
+
+| Caminho | Requisitos e escopo | Validação |
+|---|---|---|
+| [OpenShift com RHBK existente](docs/openshift.md) | API/contexto explícitos, namespace dedicado, URL/CA, realm/client já provisionados e imagens compatíveis com os nós. Instala somente a automação e a aplicação de demonstração. | Configuração/renderização e proteções testadas localmente; implantação em outro cluster **não executada**. |
+| [Exemplo completo no CRC](docs/operacao.md) | CRC Linux/ARM64; prepara Operator, PostgreSQL, RHBK e aplicações com versões fixadas. | Runtime e ensaios executados; instalação integral de um segundo CRC vazio **não executada**. |
+
+O núcleo não exige hostname `crc.testing`, nó `crc`, ARM64 ou o `client_id` original. Esses valores ficam no exemplo CRC. No caminho OpenShift, contexto, API e UIDs são conferidos antes de operações; não há uso implícito do contexto global do `oc`.
+
+O contrato atual é **uma aplicação M2M demonstrativa e um client por namespace**. Os nomes de recursos, realm, client, prefixo dos Secrets, imagens e prazos são configuráveis. Adaptar a distribuição para uma aplicação existente exige que ela carregue a nova credencial no rollout; esta base não altera Deployments arbitrários nem provisiona a infraestrutura do RHBK.
+
+## Usar a demonstração já instalada no CRC
 
 ```sh
-python3 scripts/setup.py configure \
-  --kubeconfig /caminho/kubeconfig-crc \
-  --context NOME_DO_CONTEXTO_CRC
 make preflight
-export REGISTRY_AUTH_FILE=/caminho/pull-secret.json
-make setup
-make mirror
-make deploy
-make build
-make bootstrap
-make baseline
+make watch               # tabela legível; grava observações JSONL em evidence/
+make automation-start    # altera estado: habilita a decisão periódica
+make collect             # coleta local, sem rotacionar
 ```
 
-`configure` grava somente o contexto explicitamente escolhido em `.private/crc.kubeconfig`, com permissão 0600. Os scripts recusam outra API além de `https://api.crc.testing:6443`, verificam o UID local e não usam o contexto global como alternativa. Um namespace já existente sem o registro de propriedade deste checkout é recusado.
+No caminho OpenShift, use os comandos correspondentes `make openshift-watch`, `make openshift-baseline`, `make openshift-start`, `make openshift-stop` e `make openshift-collect`, após concluir seu [guia de configuração](docs/openshift.md).
 
-`setup` obtém o bundle oficial, cria somente CRDs ausentes e verifica as existentes sem substituí-las. Prepara o namespace exclusivo, a Route do registry e a CA. `mirror` copia quatro imagens fixadas; `deploy` aguarda Operator, banco, RHBK e Route; `build` produz e fixa as imagens da aplicação e do controlador. A credencial inicial é criada somente no bootstrap, depois dessas etapas.
-
-Leia o [guia de operação](docs/operacao.md) para requisitos, observação, demonstração, recuperação e limpeza. O setup não instala ou redimensiona o CRC, não desliga outras aplicações e não cria infraestrutura de nuvem.
-
-## Executar e observar
-
-O perfil de laboratório usa TTL principal de **300 s**, anterior de **120 s**, espera de **45 s** antes do rollout e elegibilidade externa a partir de **180 s**. O CronJob avalia a cada minuto; uma avaliação pode decidir aguardar.
+O [roteiro de apresentação](docs/apresentacao.md) traz os comandos e o que explicar ao cliente. A tabela mostra os dois pods principais; as rejeições das sondas antigas não são somadas às falhas da aplicação. Ctrl+C para apenas a observação.
 
 ```sh
-# Observação do cluster; collect grava evidência local sanitizada.
-make watch
+make automation-stop     # suspende novas rotações; um Job iniciado precisa terminar
 make collect
-
-# Altera estado: três ciclos agendados (~13 min), com suspensão ao finalizar.
-make test-periodic
 ```
 
-O ensaio exige uma geração válida, estado terminal e nenhum Job ativo. A aplicação faz um novo grant a cada 2 s por pod; a sonda da credencial anterior é contabilizada separadamente. Lease, estado persistido e verificação de linhagem permitem reconciliação sem repetir cegamente o POST.
+## Configuração e verificações
 
-Com o CronJob suspenso, o TTL continua correndo. Para uma geração comprovadamente vencida e estado terminal, `make recover-expired` executa uma recuperação administrativa explícita, registra a indisponibilidade anterior e deixa o agendamento suspenso. Ciclos pendentes exigem `make reconcile`; resultado ambíguo exige investigação. Consulte o guia antes dessas mutações.
-
-## Verificação e escopo
+- [Arquitetura e limites de portabilidade](docs/arquitetura.md).
+- [Perfil longo](realm/profile.json): principal de 3650 dias, convivência de 120 s e janela de antecipação dinâmica igual a zero.
+- [Perfil curto](realm/profile-short.json): ensaios de expiração principal, separados da apresentação.
+- [Configuração OpenShift](config/openshift.example.json): exemplo sem credenciais; preencha os valores do ambiente.
+- [Versões do exemplo CRC](versions.lock.yaml): verificadas em 09/11/2026, não são a seleção automática da versão mais recente.
 
 ```sh
-make test                         # testes locais, sem cluster
-make test-post-expiration         # ensaio temporizado; altera clients dedicados
-make scan                         # compara artefatos com valores reais do lab; exige cluster
-python3 scripts/cleanup.py --dry-run
-make cleanup                      # exclui o namespace, seu PVC e RBAC global dedicado
+make test                 # testes locais, sem cluster
+make watch-json           # saída técnica; útil para integrações e análise
 ```
 
-A limpeza preserva CRDs oficiais e a configuração compartilhada da Route do registry. `.private/` e `evidence/` são locais e ignorados pelo Git. Este repositório contém uma seleção de código, testes, manifests e documentação; não inclui credenciais nem os relatórios operacionais brutos da execução original.
+`make test-post-expiration` é um ensaio **CRC** que altera clients descartáveis e exige o perfil curto; o teste recusa o perfil longo para não aguardar anos. `make test-periodic` também é do CRC e correlaciona Jobs do Cron com pelo menos três ciclos. Não execute esses ensaios durante uma apresentação ou contra uma instalação OpenShift genérica.
 
-- [Operação e recuperação](docs/operacao.md)
-- [Resultados e limitações](docs/resultados.md)
-- [Sequência da rotação](docs/diagramas/sequencia.png)
-- [Diagramas editáveis](docs/diagramas/arquitetura-rotacao-externa.drawio)
+Em RHBK 26.6, `client-secret-rotation` permanece [Technology Preview](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.6/html/server_administration_guide/assembly-managing-clients_server_administration_guide). No [Keycloak comunitário 26.8](https://www.keycloak.org/2026/10/keycloak-2680-released), foi promovido a supported; isso não transfere suporte ao produto Red Hat. Os resultados deste laboratório não homologam produção, HA ou outras versões.
+
+Arquivos privados, kubeconfigs e evidências brutas ficam em `.private/` e `evidence/`, ignorados pelo Git. O repositório contém código, configurações de exemplo, diagramas e sínteses dos resultados. Atualizar o checkout não altera imagens nem recursos em execução.

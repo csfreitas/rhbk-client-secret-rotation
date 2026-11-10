@@ -25,7 +25,7 @@ class Clock:
 
 class State:
     def __init__(self):
-        self.value = {"phase": "IDLE", "generation": 1, "current_secret": "catalogo-api-cred-v0001", "last_rotated_at": 0, "suspended": False}
+        self.value = {"phase": "IDLE", "generation": 1, "current_secret": os.getenv("SECRET_PREFIX", "catalogo-api-cred") + "-v0001", "last_rotated_at": 0, "suspended": False}
         self.saves = []
     def save(self, **changes):
         self.value.update(changes)
@@ -64,8 +64,10 @@ class Controller(c.Controller):
     def __init__(self):
         self.fakeclock, self.fakestate, self.fakelease = Clock(), State(), HeldLease()
         self.fakekc = KC(self.fakeclock)
-        super().__init__(None, self.fakekc, self.fakestate, self.fakelease, self.fakeclock.time, self.fakeclock.sleep)
-        self.credentials = {"catalogo-api-cred-v0001": self.fakekc.current}
+        # Existing timing regressions explicitly exercise the original 180s profile.
+        with patch.dict(os.environ, {"ROTATE_INTERVAL": os.getenv("ROTATE_INTERVAL", "180")}):
+            super().__init__(None, self.fakekc, self.fakestate, self.fakelease, self.fakeclock.time, self.fakeclock.sleep)
+        self.credentials = {self.state.value["current_secret"]: self.fakekc.current}
         self.pod_generation, self.rollouts, self.old_probes = 1, 0, []
     def credential(self, name): return self.credentials[name]
     def verify_pods(self, generation): return self.pod_generation == generation

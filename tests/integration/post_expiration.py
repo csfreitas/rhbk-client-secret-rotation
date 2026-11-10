@@ -394,13 +394,30 @@ class Experiment:
     def __init__(self, api, evidence, ttl=300, rotated=120, remaining=60, epsilon=5):
         self.api, self.ev = api, evidence
         self.ttl, self.rotated, self.remaining, self.eps = ttl, rotated, remaining, epsilon
-        if not 0 < rotated < ttl or not 0 < remaining < ttl or epsilon < 1:
+        if not 0 < rotated < ttl or not 0 < remaining < ttl or epsilon < 1 or ttl > 3600:
             raise Blocked("invalid_experiment_timing")
         self.initial_clock = (time.time(), time.monotonic())
         self.clock_checker = None
         self.last_clock_check = time.monotonic()
 
+    def verify_profile(self):
+        """Refuse a long-lived or mismatched profile before creating test clients."""
+        model, _ = self.api.admin('GET', '/client-policies/profiles')
+        profiles = [item for item in model.get('profiles', [])
+                    if item.get('name') == 'lab-secret-rotation-profile']
+        if len(profiles) != 1:
+            raise Blocked('short_experiment_profile_missing_or_ambiguous')
+        executors = [item for item in profiles[0].get('executors', [])
+                     if item.get('executor') == 'secret-rotation']
+        expected = {'expiration-period': self.ttl, 'rotated-expiration-period': self.rotated,
+                    'remaining-rotation-period': self.remaining}
+        if len(executors) != 1 or any(executors[0].get('configuration', {}).get(k) != v
+                                      for k, v in expected.items()):
+            raise Blocked('short_experiment_profile_mismatch_do_not_wait_for_long_lived_expiration')
+
     def wait(self, deadline):
+        if deadline-time.time() > 2*self.ttl+self.rotated+2*self.eps+60:
+            raise Blocked('server_deadline_exceeds_bounded_experiment_budget')
         next_heartbeat = time.monotonic()+30
         while time.time() < deadline:
             wall, mono = self.initial_clock
@@ -695,6 +712,7 @@ def main():
                                 int(os.environ.get("TTL_ROTATED", "120")),
                                 int(os.environ.get("REMAINING_ROTATION", "60")),
                                 int(os.environ.get("EPSILON", "5")))
+        experiment.verify_profile()
         if api.http.clock_samples:
             offset = api.http.clock_samples[-1]["server_offset_seconds"]
             ev.add("preflight", "RHBK_HTTP_Date_clock_comparison", offset_seconds=offset)

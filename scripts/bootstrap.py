@@ -95,6 +95,8 @@ def create_once(obj):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--realm-only', action='store_true')
+    parser.add_argument('--profile', choices=['long-lived', 'short'], default='long-lived',
+                        help='long-lived: presentation; short: bounded expiration experiments')
     args = parser.parse_args()
     if not args.realm_only:
         verify_workload_images()
@@ -140,13 +142,18 @@ def main():
     elif existing.get('attributes', {}).get('lab.rhbk/owner') != 'client-secret-rotation':
         raise RuntimeError('BLOCKED foreign realm')
     # Only this explicitly-owned realm is modified. Readback validates exact keys.
-    for suffix, filename in [('profiles', 'profile.json'), ('policies', 'policy.json')]:
+    profile_file = 'profile-short.json' if args.profile == 'short' else 'profile.json'
+    for suffix, filename in [('profiles', profile_file), ('policies', 'policy.json')]:
         payload = json.loads((ROOT/'realm'/filename).read_text())
         current_model = admin('GET', base+'/client-policies/'+suffix)
         try:
             verify_model(current_model, payload, suffix)
         except RuntimeError:
-            admin('PUT', base+'/client-policies/'+suffix, payload)
+            # Preserve other profiles/policies inside the explicitly owned realm.
+            names = {item['name'] for item in payload[suffix]}
+            merged = {suffix: [item for item in current_model.get(suffix, [])
+                               if item.get('name') not in names] + payload[suffix]}
+            admin('PUT', base+'/client-policies/'+suffix, merged)
         verify_model(admin('GET', base+'/client-policies/'+suffix), payload, suffix)
 
     def resolve(client_id):

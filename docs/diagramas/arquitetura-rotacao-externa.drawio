@@ -1,137 +1,142 @@
-<?xml version='1.0' encoding='utf-8'?>
 <mxfile host="app.diagrams.net" version="32.6.1" type="device">
-  <diagram name="01 — Arquitetura implantada" id="page-0">
+  <diagram name="01 — Núcleo portável e infraestrutura" id="page-0">
     <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#FFFFFF">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="Rotação externa de client secret" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=28;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
+        <mxCell id="title" value="Rotação externa de client secret no OpenShift" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=28;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="40" y="30" width="1520" height="44" />
         </mxCell>
-        <mxCell id="subtitle" value="A automação decide quando girar. O RHBK gera e valida. A aplicação recebe cada versão por rollout controlado." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=16;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Um núcleo de demonstração parametrizável; RHBK acessado por HTTPS. A credencial chega à aplicação por rollout explícito." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=16;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="40" y="82" width="1520" height="35" />
         </mxCell>
-        <mxCell id="cluster" value="" style="rounded=1;html=1;fillColor=#FAFBFC;strokeColor=#D1D5DB;strokeWidth=1.5;arcSize=5;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="40" y="145" width="1520" height="655" />
+        <mxCell id="core" value="" style="rounded=1;html=1;fillColor=#FAFBFC;strokeColor=#D1D5DB;strokeWidth=1.5;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="145" width="1010" height="620" />
         </mxCell>
-        <mxCell id="cluster-label" value="CRC local / OpenShift  •  namespace rhbk-rotation-lab" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=18;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="65" y="160" width="1400" height="32" />
+        <mxCell id="provider" value="" style="rounded=1;html=1;fillColor=#FAFBFC;strokeColor=#D1D5DB;strokeWidth=1.5;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1100" y="145" width="460" height="620" />
         </mxCell>
-        <mxCell id="lane1" value="CONTROLE DA ROTAÇÃO" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#6B7280;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="70" y="202" width="600" height="24" />
+        <mxCell id="core-title" value="NÚCLEO PORTÁVEL • namespace dedicado" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=18;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="65" y="160" width="960" height="32" />
         </mxCell>
-        <mxCell id="cron" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;CronJob&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Verifica a cada minuto&lt;br&gt;Decisão: intervalo de 180 s&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="80" y="255" width="230" height="115" />
+        <mxCell id="provider-title" value="SERVIÇO RHBK • integração por API" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=18;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1125" y="160" width="410" height="32" />
         </mxCell>
-        <mxCell id="controller" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Job controlador&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Externo ao processo RHBK&lt;br&gt;Identidade administrativa dedicada&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="390" y="255" width="300" height="115" />
+        <mxCell id="core-note" value="Nomes de recursos e client configuráveis; aplicação criada pelo próprio fluxo" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=14;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="65" y="198" width="950" height="24" />
         </mxCell>
-        <mxCell id="rhbk" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Red Hat build of Keycloak&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;26.6.9 • client-secret-rotation&lt;br&gt;Principal: 300 s | anterior: 120 s&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F0;strokeColor=#C92A2A;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1030" y="255" width="290" height="115" />
+        <mxCell id="cron" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;CronJob&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Avalia a cada minuto&lt;br&gt;Intervalo mínimo: 300 s&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="70" y="255" width="200" height="110" />
         </mxCell>
-        <mxCell id="pg" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;PostgreSQL&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Estado do RHBK&lt;br&gt;PVC persistente&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1370" y="255" width="150" height="115" />
+        <mxCell id="controller" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Job controlador&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Externo ao processo RHBK&lt;br&gt;Administrador dedicado • sem SPI&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="255" width="300" height="110" />
         </mxCell>
-        <mxCell id="cron-job" value="1. Aciona" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="cron" target="controller">
+        <mxCell id="rhbk" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Red Hat build of Keycloak&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Gera S2 e aplica a política&lt;br&gt;Perfil demo: 3.650 dias • anterior: 120 s&lt;br&gt;26.6: client-secret-rotation em TP&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F0;strokeColor=#C92A2A;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="245" width="400" height="125" />
+        </mxCell>
+        <mxCell id="state" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Lease + ConfigMap&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Exclusão mútua&lt;br&gt;Intenção antes do POST&lt;br&gt;Estado para reconciliação&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="70" y="455" width="200" height="125" />
+        </mxCell>
+        <mxCell id="secrets" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Secrets versionados&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;vN → vN+1 • imutáveis&lt;br&gt;Valor fora de logs e imagens&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="455" width="300" height="125" />
+        </mxCell>
+        <mxCell id="deployment" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Deployment da demo&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;2 réplicas • RollingUpdate&lt;br&gt;maxUnavailable: 0&lt;br&gt;maxSurge: 1&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="730" y="455" width="285" height="125" />
+        </mxCell>
+        <mxCell id="trust" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Isolamento&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Namespace exclusivo&lt;br&gt;RBAC do controlador&lt;br&gt;Probe sem token da API&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="70" y="625" width="200" height="105" />
+        </mxCell>
+        <mxCell id="old" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Sonda separada de S1&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Conserva a geração anterior&lt;br&gt;Rejeição temporizada + S2 válido&lt;br&gt;Não soma falhas à aplicação&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="625" width="300" height="105" />
+        </mxCell>
+        <mxCell id="pods" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Dois pods M2M&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Novo client_credentials / 2 s por pod&lt;br&gt;Secret fixo por processo&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="730" y="625" width="285" height="105" />
+        </mxCell>
+        <mxCell id="provider-options" value="FORMAS DE PROVER O RHBK • alternativas" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#6B7280;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="405" width="400" height="28" />
+        </mxCell>
+        <mxCell id="crc" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Exemplo: CRC local&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Operator + RHBK + PostgreSQL&lt;br&gt;Instalação de estudo • uma réplica&lt;br&gt;Núcleo executado neste ambiente&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="455" width="400" height="115" />
+        </mxCell>
+        <mxCell id="integration" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Integração: OpenShift&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;RHBK existente + URL / CA / realm&lt;br&gt;Não instala Operator ou banco&lt;br&gt;Outro cluster: NOT_RUN&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1130" y="615" width="400" height="115" />
+        </mxCell>
+        <mxCell id="schedule" value="1. Avalia" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="cron" target="controller">
           <mxGeometry as="geometry" relative="1" />
         </mxCell>
-        <mxCell id="post" value="2. POST /client-secret" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.22;entryX=0;entryY=0.22;" edge="1" parent="1" source="controller" target="rhbk">
-          <mxGeometry as="geometry" relative="1">
+        <mxCell id="post" value="2. POST /client-secret" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.25;entryX=0;entryY=0.3;" edge="1" parent="1" source="controller" target="rhbk">
+          <mxGeometry as="geometry" relative="1" y="-12" />
+        </mxCell>
+        <mxCell id="metadata" value="S2 + leitura dos metadados" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1F6FEB;strokeWidth=2;fontColor=#1F6FEB;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.77;entryX=1;entryY=0.78;" edge="1" parent="1" source="rhbk" target="controller">
+          <mxGeometry as="geometry" relative="1" y="-12" />
+        </mxCell>
+        <mxCell id="lock" value="Lease / estado" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;exitX=0.13;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="controller" target="state">
+          <mxGeometry as="geometry" relative="1" x="0" y="-10">
             <Array as="points">
-              <mxPoint x="850" y="280" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="s2" value="S2; GET dos metadados" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1F6FEB;strokeWidth=2;fontColor=#1F6FEB;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.78;entryX=1;entryY=0.78;" edge="1" parent="1" source="rhbk" target="controller">
-          <mxGeometry as="geometry" relative="1">
-            <Array as="points">
-              <mxPoint x="850" y="345" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="database" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="rhbk" target="pg">
-          <mxGeometry as="geometry" relative="1" />
-        </mxCell>
-        <mxCell id="state" value="&lt;b&gt;&lt;font style=&quot;font-size:17px&quot;&gt;Lease + ConfigMap&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Exclusão mútua e estado persistido&lt;br&gt;Retomada sem repetir POST às cegas&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="80" y="470" width="230" height="130" />
-        </mxCell>
-        <mxCell id="secrets" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Secrets versionados&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;vN → vN+1 • imutáveis&lt;br&gt;Credencial fora de logs e imagens&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="390" y="470" width="300" height="130" />
-        </mxCell>
-        <mxCell id="deployment" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Deployment&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;2 réplicas • RollingUpdate&lt;br&gt;Referência explícita a vN+1&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="770" y="470" width="250" height="130" />
-        </mxCell>
-        <mxCell id="pods" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Aplicação M2M&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Secret fixo por processo&lt;br&gt;Novo client_credentials a cada 2 s&lt;br&gt;Sem fallback e sem API administrativa&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1100" y="470" width="420" height="130" />
-        </mxCell>
-        <mxCell id="state-access" value="Estado / lock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;exitX=0.1;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="controller" target="state">
-          <mxGeometry as="geometry" relative="1">
-            <Array as="points">
-              <mxPoint x="345" y="420" />
-              <mxPoint x="195" y="420" />
+              <mxPoint x="389" y="410" />
+              <mxPoint x="170" y="410" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="persist" value="3. Persiste S2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="controller" target="secrets">
-          <mxGeometry as="geometry" relative="1" />
+          <mxGeometry as="geometry" relative="1" y="-65" />
         </mxCell>
-        <mxCell id="rollout" value="4. Espera 45 s; atualiza referência" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.9;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="controller" target="deployment">
-          <mxGeometry as="geometry" relative="1">
+        <mxCell id="update" value="4. Espera 45 s; muda referência" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.92;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="controller" target="deployment">
+          <mxGeometry as="geometry" relative="1" x="0.1" y="-12">
             <Array as="points">
-              <mxPoint x="660" y="420" />
-              <mxPoint x="895" y="420" />
+              <mxPoint x="626" y="410" />
+              <mxPoint x="872.5" y="410" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="load-secret" value="vN+1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1F6FEB;strokeWidth=2;fontColor=#1F6FEB;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="secrets" target="deployment">
-          <mxGeometry as="geometry" relative="1" />
+        <mxCell id="ref" value="vN+1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1F6FEB;strokeWidth=2;fontColor=#1F6FEB;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="secrets" target="deployment">
+          <mxGeometry as="geometry" relative="1" y="-14" />
         </mxCell>
-        <mxCell id="new-pods" value="5. Rollout" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="deployment" target="pods">
-          <mxGeometry as="geometry" relative="1" />
+        <mxCell id="old-ref" value="S1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#6B7280;strokeWidth=2;fontColor=#6B7280;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="secrets" target="old">
+          <mxGeometry as="geometry" relative="1" y="-35" />
         </mxCell>
-        <mxCell id="grant" value="6. HTTPS / token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.36;exitY=0;entryX=0.76;entryY=1;" edge="1" parent="1" source="pods" target="rhbk">
-          <mxGeometry as="geometry" relative="1">
+        <mxCell id="rollout" value="5. Rollout" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="deployment" target="pods">
+          <mxGeometry as="geometry" relative="1" y="-65" />
+        </mxCell>
+        <mxCell id="grant" value="6. HTTPS / token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="pods" target="rhbk">
+          <mxGeometry as="geometry" relative="1" x="0.77" y="-10">
             <Array as="points">
-              <mxPoint x="1250" y="420" />
+              <mxPoint x="1080" y="677.5" />
+              <mxPoint x="1080" y="390" />
+              <mxPoint x="1330" y="390" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="separation" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;Duas responsabilidades&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Rotação: API administrativa, RBAC e credencial dedicados.&lt;br&gt;Consumo: apenas o Secret da versão atribuída ao processo.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="80" y="650" width="610" height="110" />
+        <mxCell id="contract" value="Contrato: um client e uma nova aplicação de demonstração por namespace; não adota Deployments arbitrários." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=16;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="790" width="1520" height="32" />
         </mxCell>
-        <mxCell id="monitor" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;Verificação independente&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Probe separado conserva S1 até receber 401.&lt;br&gt;Os pods principais continuam usando a nova versão.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="770" y="650" width="750" height="110" />
-        </mxCell>
-        <mxCell id="operator" value="RHBK gerenciado por Operator / CR; PostgreSQL e RHBK com uma réplica no laboratório." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=13;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="80" y="770" width="1440" height="22" />
-        </mxCell>
-        <mxCell id="footer" value="Arquitetura implantada no CRC. Tempos comprimidos para demonstração; client-secret-rotation é Technology Preview. Não representa HA nem saúde em tempo real." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=13;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="40" y="828" width="1520" height="44" />
+        <mxCell id="footer" value="Validado no CRC; integração em outro cluster OpenShift: NOT_RUN. O status GA do Keycloak community 26.8 não altera o Technology Preview do RHBK 26.6." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=13;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="835" width="1520" height="40" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="02 — Sequência e sobreposição" id="page-1">
+  <diagram name="02 — Sequência e tempos da demonstração" id="page-1">
     <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" background="#FFFFFF">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="Como a troca evita interromper o consumo" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=28;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
+        <mxCell id="title" value="Geração, distribuição e rollout são etapas distintas" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=28;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="40" y="30" width="1520" height="44" />
         </mxCell>
-        <mxCell id="subtitle" value="Uma geração por operação; período de sobreposição para distribuir S2 e substituir os pods que ainda carregam S1." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=16;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Na política demonstrada, o POST renova a expiração de S2; o consumo continua com S1 até a troca explícita dos processos." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=16;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="40" y="82" width="1520" height="35" />
         </mxCell>
-        <mxCell id="step0" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;1. Avaliar&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Lease adquirido&lt;br&gt;Confere estado e validade de S1&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="step0" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;1. Avaliar e registrar&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Adquire Lease; valida S1&lt;br&gt;Persiste a intenção da operação&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="60" y="155" width="310" height="125" />
         </mxCell>
-        <mxCell id="step1" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;2. Gerar e persistir&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;POST gera S2 no RHBK&lt;br&gt;Secret vN+1 imutável&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F0;strokeColor=#C92A2A;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="step1" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;2. Gerar e persistir&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;POST gera S2; lê os metadados&lt;br&gt;Cria Secret vN+1 imutável&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F0;strokeColor=#C92A2A;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="450" y="155" width="310" height="125" />
         </mxCell>
-        <mxCell id="step2" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;3. Substituir os pods&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Hold de 45 s + rollout&lt;br&gt;Nova versão em 2 réplicas&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="step2" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;3. Substituir os pods&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;Espera 45 s; inicia rollout&lt;br&gt;Novos pods carregam S2&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="840" y="155" width="310" height="125" />
         </mxCell>
-        <mxCell id="step3" value="&lt;b&gt;&lt;font style=&quot;font-size:18px&quot;&gt;4. Concluir e observar&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Estado COMPLETE&lt;br&gt;Probe de S1 confirma expiração&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="step3" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;4. Verificar e concluir&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px;font-weight:normal;color:#4B5563&quot;&gt;S1 rejeitado + S2 válido&lt;br&gt;Depois, estado COMPLETE&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="1230" y="155" width="310" height="125" />
         </mxCell>
         <mxCell id="step-edge0" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=2;fontColor=#374151;fontSize=14;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="step0" target="step1">
@@ -144,39 +149,45 @@
           <mxGeometry as="geometry" relative="1" />
         </mxCell>
         <mxCell id="time-title" value="Linha do tempo a partir do POST" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=20;fontColor=#0B1F3A;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="60" y="325" width="1000" height="32" />
+          <mxGeometry as="geometry" x="60" y="315" width="1100" height="32" />
         </mxCell>
-        <mxCell id="scale-note" value="Escala esquemática • tempos observados na execução validada" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=14;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="60" y="360" width="1300" height="24" />
+        <mxCell id="scale-note" value="Escala esquemática • RHBK 26.6.9 • TTL principal 315.360.000 s = 3.650 dias • mínimo de rotação não é horário exato" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=14;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="353" width="1480" height="28" />
         </mxCell>
         <mxCell id="tick-label0" value="POST / t0" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="290" y="402" width="120" height="25" />
+          <mxGeometry as="geometry" x="275" y="400" width="150" height="25" />
         </mxCell>
         <mxCell id="tick0" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="350" y="435" width="1" height="240" />
         </mxCell>
         <mxCell id="tick-label1" value="+45 s" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="540" y="402" width="120" height="25" />
+          <mxGeometry as="geometry" x="525" y="400" width="150" height="25" />
         </mxCell>
         <mxCell id="tick1" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="600" y="435" width="1" height="240" />
         </mxCell>
-        <mxCell id="tick-label2" value="≈ +57 s" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="720" y="402" width="120" height="25" />
+        <mxCell id="tick-label2" value="até +105 s*" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="795" y="400" width="150" height="25" />
         </mxCell>
         <mxCell id="tick2" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="780" y="435" width="1" height="240" />
+          <mxGeometry as="geometry" x="870" y="435" width="1" height="240" />
         </mxCell>
         <mxCell id="tick-label3" value="+120 s" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1070" y="402" width="120" height="25" />
+          <mxGeometry as="geometry" x="955" y="400" width="150" height="25" />
         </mxCell>
         <mxCell id="tick3" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1130" y="435" width="1" height="240" />
+          <mxGeometry as="geometry" x="1030" y="435" width="1" height="240" />
         </mxCell>
-        <mxCell id="tick-label4" value="+300 s" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1420" y="402" width="120" height="25" />
+        <mxCell id="tick-label4" value="≥ +300 s" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1255" y="400" width="150" height="25" />
         </mxCell>
         <mxCell id="tick4" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1330" y="435" width="1" height="240" />
+        </mxCell>
+        <mxCell id="tick-label5" value="≈ +360 s**" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontSize=14;fontColor=#374151;fontStyle=1;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1405" y="400" width="150" height="25" />
+        </mxCell>
+        <mxCell id="tick5" value="" style="strokeColor=#D1D5DB;fillColor=#D1D5DB;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="1480" y="435" width="1" height="240" />
         </mxCell>
         <mxCell id="s1-label" value="Secret anterior S1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=18;fontColor=#1F2937;fontStyle=1;spacing=0;" vertex="1" parent="1">
@@ -188,32 +199,32 @@
         <mxCell id="app-label" value="Aplicação M2M" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=18;fontColor=#1F2937;fontStyle=1;spacing=0;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="60" y="620" width="250" height="40" />
         </mxCell>
-        <mxCell id="s1-bar" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;S1 ainda aceito&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="350" y="455" width="780" height="52" />
+        <mxCell id="s1-bar" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;S1 ainda aceito&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="455" width="680" height="52" />
         </mxCell>
-        <mxCell id="s1-expired" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;S1 → 401&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="1130" y="455" width="350" height="52" />
+        <mxCell id="s1-expired" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;S1 rejeitado após o prazo&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#6B7280;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="455" width="450" height="52" />
         </mxCell>
-        <mxCell id="s2-bar" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;S2 aceito — expiração reiniciada pelo POST&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="s2-bar" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;S2: novo TTL de 3.650 dias • válido além desta escala →&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="350" y="535" width="1130" height="52" />
         </mxCell>
-        <mxCell id="hold-bar" value="&lt;b&gt;&lt;font style=&quot;font-size:15px&quot;&gt;Pods com S1&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="hold-bar" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Pods com S1&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#E67700;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="350" y="615" width="250" height="52" />
         </mxCell>
-        <mxCell id="rollout-bar" value="&lt;b&gt;&lt;font style=&quot;font-size:14px&quot;&gt;Rollout ≈ 12 s&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="600" y="615" width="180" height="52" />
+        <mxCell id="rollout-bar" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Rollout: orçamento 60 s&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="615" width="270" height="52" />
         </mxCell>
-        <mxCell id="s2-app-bar" value="&lt;b&gt;&lt;font style=&quot;font-size:16px&quot;&gt;Pods com S2&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="780" y="615" width="700" height="52" />
+        <mxCell id="s2-app-bar" value="&lt;div style=&quot;font-size:17px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Pods com S2 • grants novos continuam&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#2F6FB0;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="870" y="615" width="610" height="52" />
         </mxCell>
-        <mxCell id="measured" value="&lt;b&gt;&lt;font style=&quot;font-size:17px&quot;&gt;Evidência da execução&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;3 ciclos periódicos reais: 770 autenticações principais, 0 falhas.&lt;br&gt;O secret novo continuou válido após o vencimento original de S1.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="manual" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Medição no CRC • v13 → v14 manual&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:15px;font-weight:normal;color:#4B5563&quot;&gt;Primeiro POST: expiração de S2 em 2036.&lt;br&gt;O prazo avançou 252 s em relação à expiração anterior.&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFFBEF;strokeColor=#2B8A3E;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="60" y="720" width="720" height="100" />
         </mxCell>
-        <mxCell id="limit" value="&lt;b&gt;&lt;font style=&quot;font-size:17px&quot;&gt;Condição operacional&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px&quot; color=&quot;#4B5563&quot;&gt;Orçamento: 45 s de hold + 60 s de rollout + 15 s de margem ≤ 120 s.&lt;br&gt;Se a automação ficar suspensa, o principal também vence.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9DB;strokeColor=#F08C00;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="automatic" value="&lt;div style=&quot;font-size:18px;line-height:1.25;text-align:center;&quot;&gt;&lt;b&gt;Medição no CRC • v15 → v16 automático&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:15px;font-weight:normal;color:#4B5563&quot;&gt;Intervalo observado: 359,705 s (aproximadamente 6 min).&lt;br&gt;Mínimo de 300 s + avaliação a cada minuto; não promete 5 min exatos.&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9DB;strokeColor=#F08C00;strokeWidth=2;fontColor=#1F2937;spacing=10;arcSize=12;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="820" y="720" width="720" height="100" />
         </mxCell>
-        <mxCell id="footer" value="Resultado medido no laboratório, não garantia universal. POST após vencimento reativou S1 como anterior; a recuperação explícita invalida esse anterior." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=13;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="40" y="842" width="1520" height="30" />
+        <mxCell id="footer" value="* Orçamento: 45 s de espera + 60 s de rollout + 15 s de margem = 120 s; os metadados reais ainda precisam permitir a troca.&#10;** Aproximação do intervalo observado, não garantia. A sonda antiga é contabilizada separadamente da aplicação." style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=13;fontColor=#6B7280;fontStyle=0;spacing=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="835" width="1520" height="45" />
         </mxCell>
       </root>
     </mxGraphModel>

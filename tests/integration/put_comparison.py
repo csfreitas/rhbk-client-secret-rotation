@@ -125,6 +125,7 @@ def main():
                                 int(os.environ.get("TTL_ROTATED", "120")),
                                 int(os.environ.get("REMAINING_ROTATION", "60")),
                                 int(os.environ.get("EPSILON", "5")))
+        comparison.verify_profile()
         if api.http.clock_samples:
             offset = api.http.clock_samples[-1]["server_offset_seconds"]
             evidence.add("clock", "HTTP_Date_comparison", offset_seconds=offset)

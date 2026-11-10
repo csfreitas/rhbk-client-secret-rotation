@@ -8,10 +8,12 @@ import argparse
 import base64
 import copy
 import datetime as dt
+import ipaddress
 import json
 import math
 import os
 from pathlib import Path
+import re
 import socket
 import ssl
 import sys
@@ -52,6 +54,67 @@ def event(name, **fields):
 
 class SafeError(Exception):
     """The message must be a fixed, nonsensitive diagnostic, never a response."""
+
+
+def kube_name(value, *, label=False, maximum=253):
+    """Validate names before constructing namespaced Kubernetes REST paths."""
+    part = r"[a-z0-9](?:[-a-z0-9]*[a-z0-9])?"
+    pattern = part if label else part + r"(?:\." + part + r")*"
+    if not isinstance(value, str) or not value or len(value) > maximum or not re.fullmatch(pattern, value):
+        raise SafeError("invalid configured Kubernetes resource name")
+    return value
+
+
+def client_identifier(value):
+    if not isinstance(value, str) or not value or len(value) > 255 or value != value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise SafeError("invalid configured client identifier")
+    return value
+
+
+def identity_settings():
+    return {"target_client_id": client_identifier(os.getenv("TARGET_CLIENT_ID", "catalogo-api")),
+            "secret_prefix": kube_name(os.getenv("SECRET_PREFIX", "catalogo-api-cred"), label=True, maximum=63),
+            "namespace": kube_name(os.getenv("NAMESPACE", "rhbk-rotation-lab"), label=True, maximum=63),
+            "realm": client_identifier(os.getenv("REALM", "lab-secret-rotation"))}
+
+
+def kubernetes_api_url(host, port):
+    """Service host may be a DNS name, IPv4 address or IPv6 literal."""
+    if not host or not str(port).isdigit() or not 1 <= int(port) <= 65535:
+        raise SafeError("invalid Kubernetes service address")
+    if ":" in host:
+        literal = host[1:-1] if host.startswith("[") and host.endswith("]") else host
+        try:
+            ipaddress.IPv6Address(literal)
+        except ValueError:
+            raise SafeError("invalid Kubernetes service address") from None
+        host = "[" + literal + "]"
+    elif not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9.])?", host):
+        raise SafeError("invalid Kubernetes service address")
+    return "https://" + host + ":" + str(int(port))
+
+
+def generation_label(generation):
+    if type(generation) is not int or generation < 1:
+        raise SafeError("invalid credential generation")
+    return f"v{generation:04d}"
+
+
+def versioned_secret(prefix, generation):
+    return kube_name(prefix + "-" + generation_label(generation))
+
+
+def validate_state_identity(value, settings):
+    if not isinstance(value, dict):
+        raise SafeError("invalid persisted controller state")
+    for key, expected in settings.items():
+        if key in value and value[key] != expected:
+            raise SafeError("persisted state belongs to another controller target")
+    if value.get("current_secret") != versioned_secret(settings["secret_prefix"], value.get("generation")):
+        raise SafeError("current credential reference differs from configured prefix and generation")
+    for secret_key, generation_key in (("old_secret", "old_generation"), ("next_secret", "next_generation")):
+        if secret_key in value and value[secret_key] != versioned_secret(settings["secret_prefix"], value.get(generation_key)):
+            raise SafeError("persisted credential reference differs from configured prefix and generation")
 
 
 class APIError(SafeError):
@@ -180,11 +243,9 @@ class Keycloak:
 
 class Kube:
     def __init__(self):
-        self.namespace = os.getenv("NAMESPACE", "rhbk-rotation-lab")
-        if self.namespace != "rhbk-rotation-lab":
-            raise SafeError("controller is restricted to rhbk-rotation-lab")
+        self.namespace = kube_name(os.getenv("NAMESPACE", "rhbk-rotation-lab"), label=True, maximum=63)
         sa = Path(os.getenv("SERVICE_ACCOUNT_DIR", "/var/run/secrets/kubernetes.io/serviceaccount"))
-        self.http = HTTP("https://" + os.environ["KUBERNETES_SERVICE_HOST"] + ":" + os.getenv("KUBERNETES_SERVICE_PORT", "443"), str(sa / "ca.crt"), lambda: (sa / "token").read_text().strip())
+        self.http = HTTP(kubernetes_api_url(os.environ["KUBERNETES_SERVICE_HOST"], os.getenv("KUBERNETES_SERVICE_PORT", "443")), str(sa / "ca.crt"), lambda: (sa / "token").read_text().strip())
         self.core = "/api/v1/namespaces/" + self.namespace
         self.apps = "/apis/apps/v1/namespaces/" + self.namespace
         self.coordination = "/apis/coordination.k8s.io/v1/namespaces/" + self.namespace
@@ -212,6 +273,7 @@ class Kube:
 
 class Lease:
     def __init__(self, kube, name, duration=30):
+        kube_name(name)
         self.kube, self.name, self.duration = kube, name, duration
         self.holder = os.getenv("HOSTNAME", "manual") + "-" + str(uuid.uuid4())
         self.path = kube.coordination + "/leases/" + name
@@ -280,12 +342,15 @@ class Lease:
 
 class State:
     def __init__(self, kube, name):
+        kube_name(name)
         self.kube, self.path = kube, kube.core + "/configmaps/" + name
         self.object = kube.get(self.path)
         kube.owned(self.object)
         self.value = json.loads(self.object["data"]["state.json"])
+        validate_state_identity(self.value, identity_settings())
 
     def save(self, **changes):
+        validate_state_identity({**self.value, **changes}, identity_settings())
         self.value.update(changes)
         self.value["updated_at"] = time.time()
         self.object["data"]["state.json"] = json.dumps(self.value, sort_keys=True)
@@ -293,26 +358,36 @@ class State:
 
 
 class Controller:
+    """One demo application per namespace, not an arbitrary-workload operator.
+
+    The probe container, app label, HTTP status contract and Secret keys remain
+    fixed. Target, namespace and object names are explicit deployment settings.
+    """
     def __init__(self, kube, kc, state, lease, clock=time.time, sleeper=time.sleep):
         self.kube, self.kc, self.state, self.lease = kube, kc, state, lease
         self.clock, self.sleep = clock, sleeper
-        self.client = os.getenv("TARGET_CLIENT_ID", "catalogo-api")
-        if self.client != "catalogo-api":
-            raise SafeError("controller target must be catalogo-api; tests use separate clients")
-        self.deployment = os.getenv("DEPLOYMENT_NAME", "m2m-probe")
+        self.identity = identity_settings()
+        self.client, self.secret_prefix = self.identity["target_client_id"], self.identity["secret_prefix"]
+        validate_state_identity(self.state.value, self.identity)
+        self.deployment = kube_name(os.getenv("DEPLOYMENT_NAME", "m2m-probe"))
+        self.cronjob = kube_name(os.getenv("CRONJOB_NAME", "rotation-controller"), label=True, maximum=52)
         self.hold = int(os.getenv("HOLD_SECONDS", "45"))
         self.rollout_budget = int(os.getenv("ROLLOUT_SECONDS", "60"))
         self.margin = int(os.getenv("MARGIN_SECONDS", "15"))
         self.rotated_ttl = int(os.getenv("ROTATED_TTL", "120"))
-        self.interval = int(os.getenv("ROTATE_INTERVAL", "180"))
+        self.interval = int(os.getenv("ROTATE_INTERVAL", "300"))
         self.epsilon = int(os.getenv("EPSILON_SECONDS", "5"))
         self.pre_post_budget = max(15, HTTP_TIMEOUT_SECONDS + self.epsilon)
+        if self.interval <= 0:
+            raise SafeError("rotation interval must be positive")
         if self.hold + self.rollout_budget + self.margin > self.rotated_ttl:
             raise SafeError("hold + rollout + margin exceeds rotated TTL")
         self.uuid = None
 
     def save(self, **changes):
         self.lease.check()
+        validate_state_identity(self.state.value, self.identity)
+        changes.update(self.identity)
         self.state.save(**changes)
         if "phase" in changes:
             event("state_transition", phase=changes["phase"], generation=self.state.value.get("generation"), next_generation=self.state.value.get("next_generation"))
@@ -322,15 +397,44 @@ class Controller:
         raise SafeError(reason)
 
     def credential(self, name):
-        if not name.startswith("catalogo-api-cred-v"):
+        match = re.fullmatch(re.escape(self.secret_prefix) + r"-v([0-9]+)", name)
+        if not match or name != versioned_secret(self.secret_prefix, int(match.group(1))):
             raise SafeError("unexpected credential object name")
         obj = self.kube.get(self.kube.core + "/secrets/" + name)
+        return self.credential_value(obj, name, int(match.group(1)))
+
+    def credential_value(self, obj, name, generation):
         self.kube.owned(obj)
-        return base64.b64decode(obj["data"]["client-secret"]).decode()
+        if obj.get("metadata", {}).get("name") != name or obj.get("immutable") is not True:
+            raise SafeError("credential object name or immutability mismatch")
+        try:
+            values = {key: base64.b64decode(obj["data"][key], validate=True).decode() for key in ("client-secret", "client-id", "generation")}
+        except (KeyError, ValueError, TypeError, UnicodeError):
+            raise SafeError("credential object contract incomplete") from None
+        expected = generation_label(generation)
+        label = obj["metadata"].get("labels", {}).get("lab.rhbk/generation", expected)
+        if values["client-id"] != self.client or values["generation"] != expected or label != expected or not values["client-secret"]:
+            raise SafeError("credential object belongs to another client or generation")
+        return values["client-secret"]
 
     def deployment_object(self):
         obj = self.kube.get(self.kube.apps + "/deployments/" + self.deployment)
         self.kube.owned(obj)
+        template = obj.get("spec", {}).get("template", {})
+        probes = [item for item in template.get("spec", {}).get("containers", []) if item.get("name") == "probe"]
+        if len(probes) != 1 or template.get("metadata", {}).get("labels", {}).get("app.kubernetes.io/name") != "m2m-probe":
+            raise SafeError("deployment does not implement the demo probe contract")
+        expected = {key.upper().replace("-", "_"): key for key in ("client-secret", "client-id", "generation")}
+        env = [item for item in probes[0].get("env", []) if item.get("name") in expected]
+        actual = {item["name"]: item.get("valueFrom", {}).get("secretKeyRef", {}) for item in env}
+        reference = actual.get("CLIENT_SECRET", {}).get("name")
+        allowed = {self.state.value["current_secret"]: self.state.value["generation"]}
+        if self.state.value.get("next_secret"):
+            allowed[self.state.value["next_secret"]] = self.state.value["next_generation"]
+        if len(env) != 3 or reference not in allowed or any(actual.get(key) != {"name": reference, "key": value} for key, value in expected.items()):
+            raise SafeError("deployment credential references differ from recorded generation")
+        if template.get("metadata", {}).get("labels", {}).get("lab.rhbk/generation") != generation_label(allowed[reference]):
+            raise SafeError("deployment generation label differs from credential reference")
         return obj
 
     def verify_pods(self, generation):
@@ -368,7 +472,10 @@ class Controller:
         template = copy.deepcopy(dep["spec"]["template"])
         template["metadata"] = {"name": name, "labels": {**LABELS, "app.kubernetes.io/name": "old-probe", "lab.rhbk/generation": f"v{generation:04d}"}}
         spec = template["spec"]
-        spec["restartPolicy"], spec["activeDeadlineSeconds"] = "Never", 360
+        # Keep a bounded observation window after the configured grace period,
+        # including pre-POST API work, request time and clock/safety margins.
+        observation_margin = max(120, self.margin + self.epsilon + HTTP_TIMEOUT_SECONDS)
+        spec["restartPolicy"], spec["activeDeadlineSeconds"] = "Never", max(360, self.rotated_ttl + observation_margin)
         for container in spec["containers"]:
             if container["name"] == "probe":
                 container.pop("readinessProbe", None)
@@ -379,10 +486,15 @@ class Controller:
     def stage(self, value):
         s = self.state.value
         name = s["next_secret"]
+        if name != versioned_secret(self.secret_prefix, s["next_generation"]):
+            self.block("staged credential reference differs from configured generation")
         existing = self.kube.get(self.kube.core + "/secrets/" + name, optional=True)
         if existing:
-            self.kube.owned(existing)
-            if not existing.get("immutable") or base64.b64decode(existing["data"]["client-secret"]).decode() != value:
+            try:
+                matches = self.credential_value(existing, name, s["next_generation"]) == value
+            except SafeError:
+                matches = False
+            if not matches:
                 self.block("staged credential conflicts with authoritative RHBK credential")
             return
         self.lease.check()
@@ -493,7 +605,8 @@ class Controller:
         s = self.state.value
         if s["phase"] not in TERMINAL:
             raise SafeError("recovery requires terminal state; reconcile the pending cycle instead")
-        cron = self.kube.get(self.kube.batch + "/cronjobs/rotation-controller")
+        validate_state_identity(s, self.identity)
+        cron = self.kube.get(self.kube.batch + "/cronjobs/" + self.cronjob)
         self.kube.owned(cron)
         if not cron["spec"].get("suspend") or not s.get("suspended"):
             raise SafeError("suspend the CronJob and persisted automation state before expired recovery")
@@ -523,13 +636,14 @@ class Controller:
         self.save(phase="INTENT_RECORDED", recovery_mode="expired-current", preexisting_outage=True,
                   expired_verified_at=self.clock(), cycle_id=str(uuid.uuid4()), old_secret=s["current_secret"],
                   old_generation=s["generation"], next_generation=next_generation,
-                  next_secret=f"catalogo-api-cred-v{next_generation:04d}", pre_metadata=metadata,
+                  next_secret=versioned_secret(self.secret_prefix, next_generation), pre_metadata=metadata,
                   baseline_auth=rejected, intent_at=self.clock(), old_probe_rejected=False,
                   old_probe_result=None, old_retired_early=False, old_retirement_intent_at=None, old_retirement_verified_at=None, hold_skipped_reason=None, post_finished_at=None, rollout_started_at=None)
         self.run(reconcile_only=True)
 
     def run(self, manual=False, reconcile_only=False):
         s = self.state.value
+        validate_state_identity(s, self.identity)
         self.uuid = self.kc.resolve(self.client)
         if s["phase"] == "BLOCKED":
             raise SafeError("cycle is BLOCKED; inspect evidence and recover explicitly")
@@ -553,7 +667,7 @@ class Controller:
                 raise SafeError("insufficient original validity budget for safe rotation")
             self.old_probe(s["generation"])
             next_gen = s["generation"] + 1
-            self.save(phase="INTENT_RECORDED", recovery_mode=None, preexisting_outage=False, expired_verified_at=None, cycle_id=str(uuid.uuid4()), old_secret=s["current_secret"], old_generation=s["generation"], next_generation=next_gen, next_secret=f"catalogo-api-cred-v{next_gen:04d}", pre_metadata=meta, baseline_auth=baseline_auth, intent_at=self.clock(), old_probe_rejected=False, old_probe_result=None, old_retired_early=False, old_retirement_intent_at=None, old_retirement_verified_at=None, hold_skipped_reason=None, post_finished_at=None, rollout_started_at=None)
+            self.save(phase="INTENT_RECORDED", recovery_mode=None, preexisting_outage=False, expired_verified_at=None, cycle_id=str(uuid.uuid4()), old_secret=s["current_secret"], old_generation=s["generation"], next_generation=next_gen, next_secret=versioned_secret(self.secret_prefix, next_gen), pre_metadata=meta, baseline_auth=baseline_auth, intent_at=self.clock(), old_probe_rejected=False, old_probe_result=None, old_retired_early=False, old_retirement_intent_at=None, old_retirement_verified_at=None, hold_skipped_reason=None, post_finished_at=None, rollout_started_at=None)
         if self.state.value["phase"] == "INTENT_RECORDED":
             # An intent alone means no POST has been sent. Recheck immediately
             # before marking the uncertain mutation boundary, including resume
@@ -654,7 +768,7 @@ def main():
             suspended = args.command == "suspend"
             if not suspended and state.value["phase"] == "BLOCKED":
                 raise SafeError("cannot resume a blocked cycle")
-            path = kube.batch + "/cronjobs/rotation-controller"
+            path = kube.batch + "/cronjobs/" + kube_name(os.getenv("CRONJOB_NAME", "rotation-controller"), label=True, maximum=52)
             cron = kube.get(path)
             kube.owned(cron)
             cron["spec"]["suspend"] = suspended

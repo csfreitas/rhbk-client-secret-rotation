@@ -1,4 +1,5 @@
-ARG PYTHON_IMAGE=registry.redhat.io/ubi9/python-312@sha256:1dbe53dbe4194bc25ea213246f7b2625804b2e102e4348d7e8d65507b92fd43b
+# Select an immutable Python image compatible with the target node architecture.
+ARG PYTHON_IMAGE
 FROM ${PYTHON_IMAGE}
 WORKDIR /opt/lab
 COPY controller.py /opt/lab/controller.py
