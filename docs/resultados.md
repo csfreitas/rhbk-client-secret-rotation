@@ -1,5 +1,25 @@
 # Comportamento medido e limites
 
+## Imagem otimizada e migração para OLM — 10/11/2026
+
+Execução no CRC ARM64 existente, preservando o realm, as credenciais e o estado do laboratório. Os horários desta seção são de **America/Sao_Paulo (BRT)**. Não houve novo bootstrap.
+
+| Verificação | Resultado real |
+|---|---|
+| Build da imagem RHBK | `rhbk-optimized-1` terminou `Complete`; a imagem publicada foi referenciada por digest no CR. |
+| Operator via OLM | CSV `rhbk-operator.v26.6.9-opr.1` em `Succeeded` às 15:03, após aprovação manual do InstallPlan. |
+| RHBK otimizado | Novo pod pronto às 15:06, versão `26.6.9.redhat-00002`, argumentos `start --optimized`. Não houve augmentation durante essa inicialização. |
+| Configuração preparada no build | `client-secret-rotation` identificado como persistido; health e métricas habilitados. |
+| PostgreSQL preservado | Comparação antes/depois confirmou os UIDs e as especificações de Deployment, Service e PVC; o pod manteve UID e contador de reinícios. |
+| Outra instalação existente | A comparação confirmou seus UIDs e especificações inalterados. Isso é uma verificação de preservação, não um novo ensaio funcional daquela instalação. |
+| Baseline após a migração | `PASS` às 15:07, com os dois pods M2M novamente em HTTP 200. Cada pod registrou 12 falhas durante a interrupção planejada do RHBK: **24 falhas no total**. |
+| Rotação v0032 → v0033 após o deploy | **PASS**. POST às 15:08:51; TTL da nova principal de 315360000 s e vencimento da antiga às 15:10:51, após 120 s. |
+| Distribuição e rollout após o deploy | 22 autenticações bem-sucedidas com a antiga durante aproximadamente 45 s de espera; rollout de 15:09:37 a 15:09:52, aproximadamente 15 s. |
+| Conclusão da rotação | Antiga rejeitada com HTTP 401 `unauthorized_client` às 15:10:56, 125 s após o POST; nova com HTTP 200 logo depois. Estado `COMPLETE`, geração 33, às 15:10:56. |
+| Verificação local do código | Suíte final com 279 testes aprovados; esse resultado não substitui execução integrada em outros ambientes. |
+
+O build, o Operator OLM e o servidor otimizado foram exercitados no ambiente existente. **A migração não teve disponibilidade contínua**; as falhas durante a substituição da única réplica não podem ser omitidas nem misturadas com as janelas anteriores de rotação sem falhas. A instalação integral em um segundo CRC vazio e a implantação em outro OpenShift continuam `NOT_RUN`. Digests internos, UIDs e credenciais permanecem nas evidências locais, fora desta síntese pública.
+
 ## Validade longa e rotação externa — 10/11/2026
 
 Ambiente: o mesmo CRC ARM64 com RHBK **26.6.9.redhat-00002**, sem SPI. Perfil nativo `expiration-period=315360000`, `rotated-expiration-period=120`, `remaining-rotation-period=0`. Controlador externo com `ROTATE_INTERVAL=300` e Cron `* * * * *`. Horários abaixo em **America/Sao_Paulo**.

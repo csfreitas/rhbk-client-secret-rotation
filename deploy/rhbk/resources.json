@@ -15,13 +15,8 @@
       },
       "spec": {
         "instances": 1,
-        "image": "image-registry.openshift-image-registry.svc:5000/rhbk-rotation-lab/rhbk@sha256:cadcb5911714c8ffcd851c0035f04aa399d3677579bcad825b6b296fefe0b288",
-        "startOptimized": false,
-        "features": {
-          "enabled": [
-            "client-secret-rotation"
-          ]
-        },
+        "image": "rhbk-optimized:build-required",
+        "startOptimized": true,
         "db": {
           "vendor": "postgres",
           "host": "postgresql",

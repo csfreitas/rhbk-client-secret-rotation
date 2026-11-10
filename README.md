@@ -6,7 +6,7 @@ Base de demonstração para **Red Hat build of Keycloak**, com aplicação M2M c
 
 ## O que foi validado
 
-No CRC ARM64, com **RHBK 26.6.9.redhat-00002**, validamos dois perfis:
+No CRC ARM64, com **RHBK 26.6.9.redhat-00002**, validamos dois perfis na instalação anterior à migração para imagem otimizada e OLM:
 
 | Perfil | Principal | Anterior após POST | Decisão externa |
 |---|---:|---:|---|
@@ -17,16 +17,43 @@ O POST reiniciou a validade da nova secret. A antiga, que antes venceria em 2036
 
 Os 3650 dias são um prazo finito de demonstração, não uma recomendação universal de segurança. A periodicidade externa pode ser muito menor; suspender a automação não renova nem elimina o vencimento da secret atual.
 
+Em 10/11/2026, o build otimizado, a migração do Operator para OLM e o deploy com `start --optimized` foram executados nesse CRC. A substituição da única réplica RHBK causou **24 falhas de autenticação** nos dois pods M2M; depois, o baseline voltou a passar. Isso não foi uma migração sem interrupção. A rotação posterior **v0032 → v0033 passou**, com rejeição da antiga e autenticação da nova; veja [resultados](docs/resultados.md).
+
 ## Escolha o ambiente
 
 | Caminho | Requisitos e escopo | Validação |
 |---|---|---|
 | [OpenShift com RHBK existente](docs/openshift.md) | API/contexto explícitos, namespace dedicado, URL/CA, realm/client já provisionados e imagens compatíveis com os nós. Instala somente a automação e a aplicação de demonstração. | Configuração/renderização e proteções testadas localmente; implantação em outro cluster **não executada**. |
-| [Exemplo completo no CRC](docs/operacao.md) | CRC Linux/ARM64; prepara Operator, PostgreSQL, RHBK e aplicações com versões fixadas. | Runtime e ensaios executados; instalação integral de um segundo CRC vazio **não executada**. |
+| [Exemplo completo no CRC](docs/operacao.md) | CRC Linux/ARM64; imagem RHBK otimizada por BuildConfig, Operator via OLM com aprovação manual, PostgreSQL e aplicações com versões fixadas. | Build, migração OLM, deploy otimizado, baseline e rotação posterior executados. Instalação integral de um segundo CRC vazio **não executada**. |
 
 O núcleo não exige hostname `crc.testing`, nó `crc`, ARM64 ou o `client_id` original. Esses valores ficam no exemplo CRC. No caminho OpenShift, contexto, API e UIDs são conferidos antes de operações; não há uso implícito do contexto global do `oc`.
 
-O contrato atual é **uma aplicação M2M demonstrativa e um client por namespace**. Os nomes de recursos, realm, client, prefixo dos Secrets, imagens e prazos são configuráveis. Adaptar a distribuição para uma aplicação existente exige que ela carregue a nova credencial no rollout; esta base não altera Deployments arbitrários nem provisiona a infraestrutura do RHBK.
+O contrato atual é **uma aplicação M2M demonstrativa e um client por namespace**. Os nomes de recursos, realm, client, prefixo dos Secrets, imagens e prazos são configuráveis. Adaptar a distribuição para uma aplicação existente exige que ela carregue a nova credencial no rollout; esta base não altera Deployments arbitrários. O caminho de integração com RHBK existente não provisiona a infraestrutura desse servidor.
+
+## Instalar RHBK otimizado no CRC
+
+Depois de preparar kubeconfig e autenticação privada conforme o [guia CRC](docs/operacao.md), siga a ordem:
+
+```sh
+make preflight
+make setup              # namespace, registry e inspeção do bundle; não instala Operator/CRDs
+make mirror
+make build-rhbk         # constrói a imagem otimizada e registra seu digest
+make operator-prepare   # OperatorGroup + Subscription com aprovação Manual
+```
+
+Revise o InstallPlan indicado pela Subscription. Substitua `install-NOME_REAL` pelo nome conferido antes de aprovar:
+
+```sh
+make operator-approve PLAN=install-NOME_REAL
+make operator-status    # exige CSV Succeeded e Operator pronto
+make deploy             # CR referencia o digest construído, com startOptimized: true
+make build              # imagens da aplicação e do controlador de rotação
+make bootstrap
+make baseline
+```
+
+O [Dockerfile RHBK](apps/rhbk/Dockerfile), o [BuildConfig](deploy/build/rhbk-buildconfig.json) e os [recursos OLM](deploy/operator/resources.json) são os artefatos principais. O [guia da imagem otimizada](docs/imagem-rhbk.md) explica as opções de build e o uso em outro OpenShift. Para migrar a instalação manual existente, siga a seção de migração em [operação](docs/operacao.md); ela usa `--migrate-manual` e não repete o bootstrap.
 
 ## Usar a demonstração já instalada no CRC
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Prepare a fresh ARM64 CRC using explicit credentials and pinned official inputs.
 
-configure only writes a dedicated local kubeconfig. install creates absent CRDs,
-the owned namespace and a registry route; it never replaces an existing CRD.
+configure only writes a dedicated local kubeconfig. install prepares the official
+bundle, owned namespace and registry route. OLM manages CRDs during installation.
 """
 import argparse
 import hashlib
@@ -190,22 +190,6 @@ def ensure_namespace():
                    'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'ClusterRole', 'name': role}, 'subjects': subjects})
 
 
-def install_missing_crds(definitions):
-    created = []
-    for name, (desired, existing) in definitions.items():
-        if existing:
-            continue
-        # CREATE is deliberate: a concurrently created shared CRD is never overwritten.
-        lab.oc('create', '-f', '-', data=desired)
-        created.append(name)
-    deadline = time.monotonic()+90
-    while time.monotonic() < deadline:
-        if all(any(c.get('type') == 'Established' and c.get('status') == 'True' for c in (lab.get('customresourcedefinition', name, None) or {}).get('status', {}).get('conditions', [])) for name in definitions):
-            return created
-        time.sleep(2)
-    raise RuntimeError('BLOCKED: CRDs did not become Established')
-
-
 def prepare_registry():
     config = lab.get('configs.imageregistry.operator.openshift.io', 'cluster', None)
     if not config or config.get('spec', {}).get('managementState') != 'Managed':
@@ -246,17 +230,16 @@ def install():
     auth = registry_auth_file()  # Check explicit authorization before any cluster mutation.
     private_directory()
     lock = json.loads((lab.ROOT/'versions.lock.yaml').read_text())
-    definitions = prepare_bundle(auth, lock)
+    prepare_bundle(auth, lock)
     ensure_namespace()
-    created = install_missing_crds(definitions)
     changed = prepare_registry()
     lab.manifests()
-    record = {'status': 'PASS', 'created_crds': created, 'enabled_registry_default_route': changed,
+    record = {'status': 'PASS', 'crds_managed_by': 'OLM', 'enabled_registry_default_route': changed,
               'registry_host': REGISTRY_HOST, 'bundle_image': lock['images']['bundle']['original'],
               'shared_resources_retained_on_cleanup': ['official CRDs', 'registry defaultRoute']}
     private_write(lab.PRIVATE/'setup.json', json.dumps(record, indent=2).encode())
     lab.save('evidence/setup.json', record)
-    print('PASS: pinned official bundle, compatible CRDs, owned namespace and verified registry TLS; run make mirror')
+    print('PASS: official bundle inspected, namespace and registry prepared; OLM installation is a separate step')
 
 
 def main():

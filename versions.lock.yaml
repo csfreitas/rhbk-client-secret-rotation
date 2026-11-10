@@ -56,7 +56,7 @@
   "operator": {
     "version": "26.6.9-opr.1",
     "image": "registry.redhat.io/rhbk/keycloak-rhel9-operator@sha256:5d136e0b6bb93f99b8d5ff25c1888cd98e20391b99227bfcda6386986e9603d6",
-    "mode": "official bundle Deployment/RBAC scoped to lab; create missing official CRDs, preserve existing compatible CRDs"
+    "mode": "OLM Subscription with Manual approval, stable-v26.6 and exact startingCSV; shared CRD specifications reviewed before approval"
   },
   "platform": {
     "os": "linux",
@@ -65,5 +65,5 @@
     "crd_api": "k8s.keycloak.org/v2beta1"
   },
   "application_images": {},
-  "reproduction_status": "NOT_RUN on a fresh CRC; source lab version was verified separately"
+  "reproduction_status": "Optimized image and OLM migration validation recorded in docs/resultados.md; a second empty CRC installation remains NOT_RUN"
 }

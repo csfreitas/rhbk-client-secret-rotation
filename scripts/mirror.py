@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mirror four pinned ARM64 inputs into CRC with authenticated, validated TLS."""
+"""Mirror three pinned ARM64 inputs into CRC with authenticated, validated TLS."""
 import base64
 import json
 import ssl
@@ -8,7 +8,7 @@ import sys
 import lab
 import setup
 
-NAMES = ('rhbk', 'python', 'postgres', 'operator')
+NAMES = ('rhbk', 'python', 'postgres')
 
 
 def source_image(record):
@@ -25,7 +25,7 @@ def main():
     lab.guard()
     names = sys.argv[1:] or list(NAMES)
     if not names or any(name not in NAMES for name in names):
-        raise RuntimeError('BLOCKED: mirror accepts only rhbk, python, postgres and operator')
+        raise RuntimeError('BLOCKED: mirror accepts only rhbk, python and postgres')
     if not (lab.PRIVATE/'setup.json').is_file():
         raise RuntimeError('BLOCKED: make setup must complete before mirroring')
     auth = json.loads(setup.registry_auth_file().read_text())

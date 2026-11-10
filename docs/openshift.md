@@ -4,6 +4,8 @@ Este caminho instala a aplicação de demonstração e o controlador externo em 
 
 A adaptação foi verificada por testes unitários com APIs simuladas. A instalação em outro OpenShift ainda não foi executada. Os resultados do CRC em [resultados.md](resultados.md) não constituem execução deste caminho.
 
+Para provisionar o servidor antes desta integração, consulte [imagem RHBK otimizada e Operator via OLM](imagem-rhbk.md). Esse é um procedimento separado: o importador abaixo continua usando um RHBK existente e não executa builds do servidor. Os comandos `make setup`, `make mirror`, `make build-rhbk`, `make operator-prepare`, `make operator-approve` e `make deploy` pertencem ao exemplo CRC; não os aponte para este cluster.
+
 ## Contrato e pré-requisitos
 
 - RHBK 26.x com `client-secret-rotation` habilitado pelo responsável pelo servidor. Informe a build completa, por exemplo `26.6.9.redhat-00002`. O verificador compara `/admin/serverinfo` com esse valor. Somente a build 26.6.9 foi exercitada no laboratório CRC; outras versões ficam como não executadas e precisam de homologação. O recurso é Technology Preview na linha 26.6.

@@ -76,17 +76,14 @@ class SetupSafety(unittest.TestCase):
                 setup.install()
             namespace.assert_not_called(); bundle.assert_not_called()
 
-    def test_setup_never_replaces_existing_compatible_crd(self):
-        obj = crd(); name = obj['metadata']['name']
-        with patch.object(lab, 'get', return_value=obj), patch.object(lab, 'oc') as oc:
-            self.assertEqual(setup.install_missing_crds({name: (obj, obj)}), [])
+    def test_setup_leaves_crd_installation_to_olm(self):
+        with patch.object(lab, 'guard'), patch.object(setup, 'registry_auth_file'), \
+             patch.object(setup, 'private_directory'), patch.object(setup, 'prepare_bundle'), \
+             patch.object(setup, 'ensure_namespace'), patch.object(setup, 'prepare_registry', return_value=False), \
+             patch.object(lab, 'manifests'), patch.object(setup, 'private_write'), \
+             patch.object(lab, 'save'), patch.object(lab, 'oc') as oc, contextlib.redirect_stdout(io.StringIO()):
+            setup.install()
             oc.assert_not_called()
-
-    def test_setup_creates_absent_crd_instead_of_apply(self):
-        obj = crd(); name = obj['metadata']['name']
-        with patch.object(lab, 'get', return_value=obj), patch.object(lab, 'oc') as oc:
-            self.assertEqual(setup.install_missing_crds({name: (obj, None)}), [name])
-            oc.assert_called_once_with('create', '-f', '-', data=obj)
 
     def test_unsupported_existing_crd_blocks(self):
         obj = crd(); obj['spec']['versions'][0]['served'] = False

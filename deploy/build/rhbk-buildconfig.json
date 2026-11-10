@@ -1,0 +1,48 @@
+{
+  "apiVersion": "build.openshift.io/v1",
+  "kind": "BuildConfig",
+  "metadata": {
+    "name": "rhbk-optimized"
+  },
+  "spec": {
+    "runPolicy": "Serial",
+    "serviceAccount": "builder",
+    "triggers": [],
+    "successfulBuildsHistoryLimit": 3,
+    "failedBuildsHistoryLimit": 3,
+    "completionDeadlineSeconds": 900,
+    "source": {
+      "type": "Binary",
+      "binary": {}
+    },
+    "strategy": {
+      "type": "Docker",
+      "dockerStrategy": {
+        "dockerfilePath": "Dockerfile",
+        "noCache": true,
+        "buildArgs": [
+          {
+            "name": "RHBK_IMAGE",
+            "value": "registry.redhat.io/rhbk/keycloak-rhel9@sha256:REPLACE_WITH_VERIFIED_PLATFORM_DIGEST"
+          }
+        ]
+      }
+    },
+    "output": {
+      "to": {
+        "kind": "ImageStreamTag",
+        "name": "rhbk-optimized:lab"
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "250m",
+        "memory": "512Mi"
+      },
+      "limits": {
+        "cpu": "2",
+        "memory": "2Gi"
+      }
+    }
+  }
+}

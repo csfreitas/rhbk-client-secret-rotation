@@ -71,3 +71,13 @@ openshift-rotate-once:
 	$(PYTHON) scripts/control.py rotate-once --environment openshift
 openshift-reconcile:
 	$(PYTHON) scripts/control.py reconcile --environment openshift
+
+.PHONY: build-rhbk operator-prepare operator-approve operator-status
+build-rhbk:
+	$(PYTHON) scripts/rhbk_image.py build
+operator-prepare:
+	$(PYTHON) scripts/operator_olm.py prepare
+operator-approve:
+	$(PYTHON) scripts/operator_olm.py approve --plan "$(PLAN)"
+operator-status:
+	$(PYTHON) scripts/operator_olm.py check
