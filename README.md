@@ -58,6 +58,8 @@ make collect             # coleta local, sem rotacionar
 
 No caminho OpenShift, use os comandos correspondentes `make openshift-watch`, `make openshift-baseline`, `make openshift-start`, `make openshift-stop` e `make openshift-collect`, após concluir seu [guia de configuração](docs/openshift.md).
 
+Para acompanhar diretamente as autenticações com a **secret antiga e a nova**, use o [observador de convivência](docs/teste-convivencia.md). Ele acompanha a automação existente e não solicita uma rotação.
+
 O [roteiro de apresentação](docs/apresentacao.md) traz os comandos e o que explicar ao cliente. A tabela mostra os dois pods principais; as rejeições das sondas antigas não são somadas às falhas da aplicação. Ctrl+C para apenas a observação.
 
 ```sh

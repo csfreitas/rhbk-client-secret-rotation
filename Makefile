@@ -92,3 +92,9 @@ rhbk-render-server:
 	$(PYTHON) scripts/render_install.py --params "$(PARAMS)" --component keycloak --image "$(RHBK_IMAGE)"
 rhbk-render-postgres:
 	$(PYTHON) scripts/render_install.py --params "$(PARAMS)" --component postgres-demo
+
+# Observe existing rotations with fresh token requests; never generate a secret.
+WATCH_CONFIG ?= .private/watch-secrets.env
+.PHONY: watch-secrets
+watch-secrets:
+	bash scripts/watch-secrets.sh --config "$(WATCH_CONFIG)"
